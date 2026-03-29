@@ -1,0 +1,66 @@
+---
+description: When and how to run tests, lint, and create git commits after completing work
+alwaysApply: true
+---
+
+# Workflow: Test, Lint, Commit
+
+## After every meaningful batch of work
+
+Run tests and lint before committing. "Meaningful batch" means any change
+that affects runtime behaviour, types, or project structure — not just
+formatting or comment edits.
+
+```bash
+deno test --allow-all   # all workspace members
+deno lint
+```
+
+Fix every failure before proceeding. Do not commit broken or lint-failing code.
+
+If tests don't exist yet for the changed code, lint is sufficient — but note
+the absence in the commit message.
+
+## Commit only when clean
+
+Only create a commit once tests and lint pass. One logical unit of work per
+commit — do not bundle unrelated changes.
+
+## Commit message format
+
+```
+<short summary of what changed> (≤72 chars, imperative mood)
+
+<why this change was made, or what problem it solves>
+<notable implications, risks, or follow-up work needed>
+```
+
+- First line: imperative mood ("Add", "Fix", "Refactor"), ≤72 characters.
+- Blank line between summary and body.
+- Body: 2–4 concise lines. Focus on *why* and *implications*, not *what*
+  (the diff already shows what).
+- No bullet points in the body unless listing genuinely distinct items.
+
+### Examples
+
+```
+Add use case and invoker for content ingestion
+
+Implements the ingest_content use case and Hono HTTP invoker.
+Config reads LLM_API_KEY at startup; missing key throws immediately.
+No tests yet — queue repository stub needed first.
+```
+
+```
+Fix feed position monotonicity on snooze
+
+snooze_feed_item RPC was computing max(position) without locking,
+causing duplicate positions under concurrent requests.
+Changed to FOR UPDATE to serialise the update.
+```
+
+## Do not commit
+
+- `.env`, `.env.local`, or any file containing secrets.
+- `deno.lock` conflicts left unresolved.
+- Files unrelated to the current unit of work.

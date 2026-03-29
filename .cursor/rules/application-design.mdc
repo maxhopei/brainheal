@@ -1,0 +1,143 @@
+---
+description: Application design pattern — Clean Architecture with Invokers and Use Cases
+alwaysApply: true
+---
+
+# Application Design
+
+All services (worker, Edge Functions, frontend API) follow a simplified
+[Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html).
+
+## Layers
+
+```
+invokers/          ← outermost edge: HTTP handlers, scheduled triggers
+use_cases/         ← core business logic (signal-agnostic)
+repositories/      ← interfaces + implementations for DB/storage access
+clients/           ← thin wrappers for external APIs (LLM, Stripe, Supabase)
+config.ts          ← environment variable configuration for this service
+```
+
+The domain/entities layer is intentionally minimal — a few repository
+interfaces are sufficient. Do not create a rich domain model unless there
+is a clear, concrete reason.
+
+## Use Cases
+
+- A Use Case is a single, clearly-named function or class that carries out
+  one piece of business logic.
+- Use Cases are **completely unaware** of how they are invoked. They must
+  not import anything from `invokers/`.
+- They receive typed inputs and return typed outputs (or throw typed errors).
+- They call repositories and clients — never raw DB queries or fetch calls.
+- Name files and functions after the action they perform:
+  `process_queue_item.ts`, `snooze_feed_item.ts`, `ingest_url.ts`.
+
+```typescript
+// worker/use_cases/process_queue_item.ts
+export async function processQueueItem(
+  queueItemId: string,
+  repos: Repositories,
+  clients: Clients,
+): Promise<void> { ... }
+```
+
+> **"Screaming Architecture"**: if you want to know what a service *does*,
+> read `use_cases/`. If you want to know *when and how*, read `invokers/`.
+
+## Invokers
+
+Invokers are the outermost layer. They connect external signals to Use Cases.
+
+Currently two types:
+
+| Type | Examples |
+|---|---|
+| HTTP route | Hono route handler, Edge Function entry point |
+| Time-based trigger | `setInterval` poll loop in the worker |
+
+An invoker's only responsibilities:
+1. Parse/validate the incoming signal (request params, env vars, timer tick).
+2. Call one or more Use Cases with the parsed inputs.
+3. Translate the result into the appropriate output (HTTP response, log entry).
+
+Invokers must contain **no business logic**. If an invoker grows beyond
+~30 lines, extract a Use Case.
+
+```typescript
+// worker/invokers/poll_queue.ts
+export function startQueuePoller(repos: Repositories, clients: Clients): void {
+  setInterval(async () => {
+    const item = await repos.queue.claimNext();
+    if (item) await processQueueItem(item.id, repos, clients);
+  }, POLL_INTERVAL_MS);
+}
+```
+
+```typescript
+// supabase/functions/ingest/index.ts  (Hono + Supabase serve)
+app.post('/ingest', async (c) => {
+  const body = await c.req.json();
+  const user = c.get('user');
+  const result = await ingestContent(body, user, repos, clients);
+  return c.json(result, 202);
+});
+```
+
+## Repositories
+
+- Define a TypeScript `type` (or `interface` when extension is needed) for
+  each repository in `repositories/types.ts`.
+- Provide concrete implementations alongside: `repositories/queue_repository.ts`.
+- Use Cases depend only on the type — never on the concrete implementation.
+- This makes Use Cases trivially testable with simple stub objects.
+
+## Clients
+
+- Thin, typed wrappers around external services (LLM API, Stripe, Supabase Storage).
+- One file per external service: `clients/llm_client.ts`, `clients/storage_client.ts`.
+- Clients handle retries, auth headers, and serialisation — nothing else.
+
+## Configuration
+
+- Every service has a single `config.ts` at its root.
+- It reads all required environment variables and exports a typed `Config` object.
+- Fail fast at startup: throw a descriptive error if a required variable is missing.
+- No other file reads `Deno.env` directly.
+
+```typescript
+// worker/config.ts
+export type Config = {
+  supabaseUrl: string;
+  supabaseServiceRoleKey: string;
+  llmApiKey: string;
+  pollIntervalMs: number;
+};
+
+export function loadConfig(): Config {
+  const get = (key: string): string => {
+    const val = Deno.env.get(key);
+    if (!val) throw new Error(`Missing required env var: ${key}`);
+    return val;
+  };
+  return {
+    supabaseUrl: get('SUPABASE_URL'),
+    supabaseServiceRoleKey: get('SUPABASE_SERVICE_ROLE_KEY'),
+    llmApiKey: get('LLM_API_KEY'),
+    pollIntervalMs: Number(Deno.env.get('POLL_INTERVAL_MS') ?? '5000'),
+  };
+}
+```
+
+## One-to-many is fine
+
+There is no enforced 1:1 relationship between invokers and use cases:
+- A single HTTP route may call multiple use cases in sequence.
+- A single use case may be triggered by both an HTTP invoker and a timer invoker.
+
+## Adding new functionality
+
+1. Create a new Use Case file in `use_cases/`.
+2. Create or extend an Invoker in `invokers/` to trigger it.
+3. Add any new repository method to the repository type first, then implement it.
+4. Wire everything together in `main.ts` (dependency injection at the entry point).

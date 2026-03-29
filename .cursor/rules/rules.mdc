@@ -1,0 +1,70 @@
+---
+description: How to create, update, and organise Cursor rules in this repository
+alwaysApply: true
+---
+
+# Rules for Rules
+
+## Location and format
+
+- All project rules live in `.cursor/rules/` and are version-controlled.
+- Every rule file **must** use the `.mdc` extension.
+- Every `.mdc` file **must** have a YAML frontmatter block with at least `description` and `alwaysApply`.
+
+```md
+---
+description: One clear sentence describing when/why this rule applies
+alwaysApply: false   # or true for global rules
+---
+```
+
+- Use `globs` instead of `alwaysApply: true` when the rule is only relevant to specific file types:
+
+```md
+---
+description: React component conventions
+globs: ["frontend/src/**/*.tsx", "frontend/src/**/*.ts"]
+alwaysApply: false
+---
+```
+
+## Naming
+
+- File names use `kebab-case`: `typescript-style.mdc`, `supabase-patterns.mdc`.
+- Name the file after what the rule governs, not who it's for.
+- Group related rules in subdirectories if the set grows large (e.g., `.cursor/rules/frontend/`).
+
+## Rule types — when to use each
+
+| Type | Frontmatter | Use when |
+|---|---|---|
+| Always Apply | `alwaysApply: true` | Truly universal — applies to every file and conversation (e.g., this meta-rule, security rules) |
+| Apply Intelligently | `alwaysApply: false` + `description` | Most rules — agent decides based on context |
+| Apply to Specific Files | `globs: [...]` + `alwaysApply: false` | File-type-specific conventions (React, SQL, Deno) |
+| Apply Manually | No globs, no description trigger | Rarely-needed templates; user @-mentions the rule |
+
+Prefer **Apply Intelligently** as the default. Only use `alwaysApply: true` for rules that must never be skipped.
+
+## Content guidelines
+
+- Keep each rule **under 500 lines**. Split large topics into multiple focused files.
+- Write rules as actionable instructions, not vague principles.
+- Prefer concrete examples over prose explanations.
+- Reference canonical source files with `@path/to/file` rather than copying their content — this avoids stale duplication.
+- Reference spec files (e.g., `@specs/data-model.md`) when a rule enforces patterns described there.
+- Avoid documenting things the agent already knows (common npm/git commands, standard TypeScript syntax, etc.).
+
+## When to create a new rule
+
+Create a rule when:
+- The agent makes the same mistake repeatedly and a reminder would fix it.
+- A pattern is project-specific and not inferrable from the codebase alone.
+- A workflow requires multiple non-obvious steps to be done in order.
+
+Do **not** create a rule to document every possible edge case — keep the rule set lean.
+
+## Updating rules
+
+- When a decision recorded in a spec file changes, update both the spec and any rule that references it.
+- When a rule becomes obsolete (e.g., a pattern is removed), delete the file — do not leave stale rules.
+- Rules are checked into git; treat rule changes like code changes (review, commit message, etc.).
