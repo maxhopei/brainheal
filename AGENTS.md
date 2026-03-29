@@ -20,92 +20,83 @@ Additional context: `spec-draft.md` (earlier draft), `CLAUDE.md` (Claude-specifi
 
 ```
 brainheal/
-├── frontend/          # React + TypeScript + Vite PWA
+├── deno.json                   # workspace root — shared deps + root tasks
+├── deno.lock
+├── packages/
+│   └── shared/                 # @brainheal/shared — types, constants, utilities
+│       └── deno.json
+├── frontend/                   # @brainheal/frontend — React + Vite PWA (Deno runtime)
 │   ├── src/
 │   │   ├── components/
 │   │   ├── hooks/
 │   │   ├── pages/
-│   │   ├── lib/          # Supabase client, helpers
-│   │   └── types/        # Shared TypeScript types
+│   │   ├── lib/                # Supabase client, helpers
+│   │   └── api/                # Hono API server (dev proxy target)
 │   ├── public/
 │   ├── index.html
 │   ├── vite.config.ts
-│   ├── tsconfig.json
-│   └── package.json
+│   └── deno.json
 ├── supabase/
-│   ├── functions/        # Edge Functions (Deno)
-│   │   ├── ingest/
-│   │   └── stripe-webhook/
-│   └── migrations/       # SQL migration files
-├── worker/               # Fly.io processing worker (Deno)
+│   ├── functions/              # Edge Functions — each is a workspace member
+│   │   ├── ingest/             # @brainheal/fn-ingest
+│   │   └── stripe-webhook/     # @brainheal/fn-stripe-webhook
+│   └── migrations/             # SQL migration files
+├── worker/                     # @brainheal/worker — Fly.io processing worker
 │   ├── main.ts
 │   ├── processor.ts
 │   ├── llm.ts
 │   └── deno.json
-└── extension/            # Chrome MV3 browser extension (Phase 2)
+└── extension/                  # @brainheal/extension — Chrome MV3 (Phase 2)
+    └── deno.json
 ```
 
 ---
 
 ## Build / Lint / Test Commands
 
-### Frontend (React + Vite)
+**Runtime:** Deno 2.7 everywhere — no Node.js, no npm. HTTP framework: Hono (all members).
+
+### All workspace members (run from repo root)
 
 ```bash
-# Install dependencies
-npm install
+# Install / sync dependencies
+deno install
 
-# Dev server
-npm run dev
+# Run all tests across every workspace member
+deno test --allow-all
 
-# Production build
-npm run build
-
-# Preview production build
-npm run preview
-
-# Type check
-npm run typecheck       # or: tsc --noEmit
-
-# Lint
-npm run lint            # ESLint
-
-# Format
-npm run format          # Prettier
-
-# Run all tests
-npm test                # or: npx vitest
+# Run tests in a single member directory
+deno test --allow-all worker/
 
 # Run a single test file
-npx vitest run src/hooks/useFeed.test.ts
+deno test --allow-all worker/processor.test.ts
 
-# Run tests matching a pattern
-npx vitest run --reporter=verbose -t "snooze"
+# Run tests matching a name pattern
+deno test --filter "snooze_feed_item"
+
+# Type-check all members
+deno check
+
+# Lint everything
+deno lint
+
+# Format everything
+deno fmt
 ```
 
-### Worker / Edge Functions (Deno)
+### Frontend (React + Vite, Deno runtime)
 
 ```bash
-# Run worker locally
-deno run --allow-net --allow-env worker/main.ts
+deno task --cwd=frontend dev      # Vite dev server (port 3000) + Hono API (port 8000)
+deno task --cwd=frontend build    # Production build (output → frontend/dist/)
+deno task --cwd=frontend preview  # Preview production build
+```
 
-# Type check Deno files
-deno check worker/main.ts
+### Worker (Fly.io)
 
-# Lint
-deno lint worker/
-
-# Format
-deno fmt worker/
-
-# Run all tests
-deno test --allow-net --allow-env
-
-# Run a single test file
-deno test --allow-net --allow-env worker/processor.test.ts
-
-# Run tests matching a pattern
-deno test --filter "snooze_feed_item"
+```bash
+deno task --cwd=worker dev    # Run worker locally with --watch
+deno task --cwd=worker start  # Run worker (production mode)
 ```
 
 ### Supabase
@@ -117,10 +108,10 @@ supabase start
 # Apply migrations
 supabase db push
 
-# Run Edge Functions locally
+# Run an Edge Function locally
 supabase functions serve ingest --env-file .env.local
 
-# Deploy Edge Functions
+# Deploy an Edge Function
 supabase functions deploy ingest
 ```
 
@@ -177,9 +168,9 @@ import { CardView } from './CardView';
 
 **Deno:**
 ```typescript
-// Use explicit versioned URLs or import maps; never bare specifiers
-import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// Use JSR or npm specifiers with import maps in deno.json; never raw https:// URLs
+import { assertEquals } from '@std/assert';
+import { Hono } from 'hono';
 ```
 
 - No default exports from utility/helper modules — use named exports

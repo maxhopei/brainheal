@@ -68,16 +68,18 @@ graph TB
 
 | Layer             | Technology                                     | Notes                                                                                 |
 | ----------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Web frontend      | React + TypeScript + Vite                      | PWA with Web Share Target API. `@supabase/supabase-js` for all backend communication. |
+| Web frontend      | React + TypeScript + Vite (Deno 2.7)           | PWA with Web Share Target API. `@supabase/supabase-js` for all backend communication. Scaffolded with `deno init --npm vite`. |
+| Backend API       | Hono (all members)                             | Single HTTP framework across frontend API server, worker, and Edge Functions. No Oak/Express. |
 | Browser extension | Vanilla JS                                     | Chrome Manifest V3. Calls Edge Function with Supabase anon key.                       |
 | Database          | Supabase PostgreSQL                            | Primary store + queue. RLS policies for multi-tenant isolation.                       |
 | Auth              | Supabase Auth                                  | Email/password + Google OAuth. Zero custom auth code.                                 |
 | Object storage    | Supabase Storage                               | S3-compatible. Article images.                                                        |
 | API (reads)       | Supabase PostgREST                             | Auto-generated. Client uses `supabase.from()`.                                        |
-| API (mutations)   | Supabase Edge Functions (Deno)                 | Business logic: ingest, billing webhooks.                                             |
+| API (mutations)   | Supabase Edge Functions (Deno 2.7)             | Business logic: ingest, billing webhooks. Hono app wrapped for Supabase `serve()`.    |
 | API (atomic ops)  | PostgreSQL functions via RPC                   | `supabase.rpc()` for snooze, mark-read.                                               |
 | Realtime          | Supabase Realtime                              | Push feed updates to clients.                                                         |
-| Processing worker | Deno on Fly.io                                 | Long-running. Docker container. Direct PG connection with `service_role` key.         |
+| Processing worker | Deno 2.7 on Fly.io                             | Long-running. Docker container. Direct PG connection with `service_role` key.         |
+| Workspace         | Deno 2.7 workspaces (root `deno.json`)         | Single lockfile. JSR/npm specifiers only — no raw `https://` imports.                 |
 | LLM               | OpenAI or Anthropic API                        | Abstracted behind an interface. Cost/quality TBD.                                     |
 | Payments          | Stripe                                         | Subscription billing via Edge Function webhook.                                       |
 | Deployment        | Vercel (frontend) + Supabase + Fly.io (worker) |                                                                                       |
