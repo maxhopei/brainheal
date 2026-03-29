@@ -1,0 +1,12 @@
+{
+  "name": "@brainheal/fn-stripe-webhook",
+  "version": "0.1.0",
+  "exports": "./index.ts",
+  "imports": {
+    "@brainheal/shared": "../../../packages/shared/mod.ts",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@^2",
+    "hono": "npm:hono@^4",
+    "hono/": "npm:hono@^4/",
+    "@std/assert": "jsr:@std/assert@^1"
+  }
+}

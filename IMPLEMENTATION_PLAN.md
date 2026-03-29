@@ -5,6 +5,16 @@
 
 ---
 
+## Implementation Status — Updated 2026-03-29
+
+**Tests passing:** 71/71 (packages/shared: 24, ingest Edge Function: 24, worker: 23)
+
+**Completed phases:** 0.1, 1, 2, 3, 4 (partial - Dockerfile pending)
+
+**Next up:** Phase 5 (Frontend scaffold + auth) — critical path continues with PWA setup, Supabase auth flow, and the Feed screen.
+
+---
+
 ## How to read this plan
 
 Tasks are grouped into phases. Each phase has a goal milestone. Work is broadly sequential within a phase, but tasks within a phase that have no dependencies can be done in parallel.
@@ -19,11 +29,11 @@ Progress tracking legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 ### 0.1 Workspace skeleton
 
-- [ ] Create root `deno.json` (workspace array, shared imports: `hono`, `@supabase/supabase-js`, `@std/assert`)
-- [ ] Create `deno.lock`
-- [ ] Add `.gitignore` (`.env*`, `dist/`, `node_modules/`, `.DS_Store`)
-- [ ] Create `packages/shared/deno.json` (name: `@brainheal/shared`)
-- [ ] Create `packages/shared/mod.ts` (barrel export — empty for now)
+- [x] Create root `deno.json` (workspace array, shared imports: `hono`, `@supabase/supabase-js`, `@std/assert`)
+- [x] Create `deno.lock`
+- [x] Add `.gitignore` (`.env*`, `dist/`, `node_modules/`, `.DS_Store`)
+- [x] Create `packages/shared/deno.json` (name: `@brainheal/shared`)
+- [x] Create `packages/shared/mod.ts` (barrel export — re-exports from `types.ts`)
 
 ### 0.2 Supabase project
 
@@ -74,47 +84,48 @@ Progress tracking legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 File: `supabase/migrations/<timestamp>_initial_schema.sql`
 
-- [ ] Create `profiles` table (id, nickname, billing_tier, created_at, updated_at)
-- [ ] Create `posts` table (id, user_id, source_url, source_text, title, status, error_message, created_at, updated_at)
-- [ ] Create `cards` table (id, post_id, position, content_type, text_content, media_url, media_caption, created_at)
-- [ ] Create `feed_items` table (id, user_id, post_id, queue_item_id, position, state, source_type, shared_by_user_id, shared_message, created_at, read_at)
-- [ ] Create `queue_items` table (id, user_id, input_type, input_value, status, error_message, retry_count, created_at, started_at, completed_at)
-- [ ] Create `cost_records` table (id, user_id, queue_item_id, tokens_input, tokens_output, cost_usd, model_used, created_at)
-- [ ] Create `favorite_groups` table (id, user_id, name, position, is_default, created_at)
-- [ ] Create `favorites` table (id, user_id, post_id, group_id, created_at)
-- [ ] Create `reactions` table (id, user_id, post_id, type, created_at)
-- [ ] Add indices: `feed_items(user_id, state, position)`, `queue_items(status, created_at)`, `favorites(user_id, post_id)`
+- [x] Create `profiles` table (id, nickname, billing_tier, created_at, updated_at)
+- [x] Create `posts` table (id, user_id, source_url, source_text, title, status, error_message, created_at, updated_at)
+- [x] Create `cards` table (id, post_id, position, content_type, text_content, media_url, media_caption, created_at)
+- [x] Create `feed_items` table (id, user_id, post_id, queue_item_id, position, state, source_type, shared_by_user_id, shared_message, created_at, read_at)
+- [x] Create `queue_items` table (id, user_id, input_type, input_value, status, error_message, retry_count, created_at, started_at, completed_at)
+- [x] Create `cost_records` table (id, user_id, queue_item_id, tokens_input, tokens_output, cost_usd, model_used, created_at)
+- [x] Create `favorite_groups` table (id, user_id, name, position, is_default, created_at)
+- [x] Create `favorites` table (id, user_id, post_id, group_id, created_at)
+- [x] Create `reactions` table (id, user_id, post_id, type, created_at)
+- [x] Add indices: `feed_items(user_id, state, position)`, `queue_items(status, created_at)`, `favorites(user_id, post_id)`
 
 ### 1.2 Triggers migration
 
 File: `supabase/migrations/<timestamp>_triggers.sql`
 
-- [ ] `handle_new_user()` — auto-insert `profiles` row on `auth.users` INSERT
-- [ ] `on_auth_user_created` trigger on `auth.users`
-- [ ] `handle_new_profile()` — auto-insert default "Saved" `favorite_groups` row on `profiles` INSERT
-- [ ] `on_profile_created` trigger on `profiles`
+- [x] `handle_new_user()` — auto-insert `profiles` row on `auth.users` INSERT
+- [x] `on_auth_user_created` trigger on `auth.users`
+- [x] `handle_new_profile()` — auto-insert default "Saved" `favorite_groups` row on `profiles` INSERT
+- [x] `on_profile_created` trigger on `profiles`
 
 ### 1.3 RLS policies migration
 
 File: `supabase/migrations/<timestamp>_rls.sql`
 
-- [ ] Enable RLS on all `public` tables
-- [ ] `profiles`: SELECT/UPDATE own row only
-- [ ] `posts`: SELECT own posts; DELETE own posts
-- [ ] `cards`: SELECT cards of own posts
-- [ ] `feed_items`: SELECT/UPDATE/DELETE own items
-- [ ] `queue_items`: SELECT own items; DELETE own pending items
-- [ ] `favorite_groups`: SELECT/INSERT/UPDATE own groups; DELETE own non-default groups
-- [ ] `favorites`: SELECT/INSERT/DELETE own favorites
-- [ ] `reactions`: SELECT/INSERT/UPDATE/DELETE own reactions
-- [ ] `cost_records`: SELECT own records
+- [x] Enable RLS on all `public` tables
+- [x] `profiles`: SELECT/UPDATE own row only
+- [x] `posts`: SELECT own posts; DELETE own posts
+- [x] `cards`: SELECT cards of own posts
+- [x] `feed_items`: SELECT/UPDATE/DELETE own items
+- [x] `queue_items`: SELECT own items; DELETE own pending items
+- [x] `favorite_groups`: SELECT/INSERT/UPDATE own groups; DELETE own non-default groups
+- [x] `favorites`: SELECT/INSERT/DELETE own favorites
+- [x] `reactions`: SELECT/INSERT/UPDATE/DELETE own reactions
+- [x] `cost_records`: SELECT own records
 
 ### 1.4 RPC functions migration
 
 File: `supabase/migrations/<timestamp>_rpc_functions.sql`
 
-- [ ] `snooze_feed_item(item_id uuid)` — UPDATE position to `MAX(position)+1` for auth.uid()
-- [ ] `mark_feed_item_read(item_id uuid)` — UPDATE state='read', read_at=now() for auth.uid()
+- [x] `snooze_feed_item(item_id uuid)` — UPDATE position to `MAX(position)+1` for auth.uid()
+- [x] `mark_feed_item_read(item_id uuid)` — UPDATE state='read', read_at=now() for auth.uid()
+- [x] `claim_next_queue_item()` — Worker RPC: atomically claims next pending item with FOR UPDATE SKIP LOCKED
 
 ### 1.5 Verify schema
 
@@ -127,24 +138,24 @@ File: `supabase/migrations/<timestamp>_rpc_functions.sql`
 
 **Goal**: A single `@brainheal/shared` package exports all TypeScript types used across frontend, worker, and Edge Functions.
 
-- [ ] Define `CardType` union type: `'text' | 'image' | 'key_points' | 'quote'`
-- [ ] Define `PostStatus` union type: `'processing' | 'ready' | 'failed'`
-- [ ] Define `QueueStatus` union type: `'pending' | 'processing' | 'completed' | 'failed'`
-- [ ] Define `FeedItemState` union type: `'unread' | 'read'`
-- [ ] Define `BillingTier` union type: `'free' | 'paid'`
-- [ ] Define `SourceType` union type: `'self' | 'shared' | 'suggested'`
-- [ ] Define `InputType` union type: `'url' | 'text'`
-- [ ] Define `ReactionType` union type: `'like' | 'meh'`
-- [ ] Define `Profile` type (matching `profiles` table)
-- [ ] Define `Post` type (matching `posts` table)
-- [ ] Define `Card` type (matching `cards` table)
-- [ ] Define `FeedItem` type (with nested `post?: Post & { cards: Card[] }` and `queue_item?: QueueItem`)
-- [ ] Define `QueueItem` type (matching `queue_items` table)
-- [ ] Define `CostRecord` type (matching `cost_records` table)
-- [ ] Define `FavoriteGroup` type (matching `favorite_groups` table, with optional `favorites`)
-- [ ] Define `Favorite` type (matching `favorites` table)
-- [ ] Define `LLMCardOutput` type (shape returned by LLM JSON: `{ title, cards }`)
-- [ ] Export all types from `packages/shared/mod.ts`
+- [x] Define `CardType` union type: `'text' | 'image' | 'key_points' | 'quote'`
+- [x] Define `PostStatus` union type: `'processing' | 'ready' | 'failed'`
+- [x] Define `QueueStatus` union type: `'pending' | 'processing' | 'completed' | 'failed'`
+- [x] Define `FeedItemState` union type: `'unread' | 'read'`
+- [x] Define `BillingTier` union type: `'free' | 'paid'`
+- [x] Define `SourceType` union type: `'self' | 'shared' | 'suggested'`
+- [x] Define `InputType` union type: `'url' | 'text'`
+- [x] Define `ReactionType` union type: `'like' | 'meh'`
+- [x] Define `Profile` type (matching `profiles` table)
+- [x] Define `Post` type (matching `posts` table)
+- [x] Define `Card` type (matching `cards` table)
+- [x] Define `FeedItem` type (with nested `post?: Post & { cards: Card[] }` and `queue_item?: QueueItem`)
+- [x] Define `QueueItem` type (matching `queue_items` table)
+- [x] Define `CostRecord` type (matching `cost_records` table)
+- [x] Define `FavoriteGroup` type (matching `favorite_groups` table, with optional `favorites`)
+- [x] Define `Favorite` type (matching `favorites` table)
+- [x] Define `LLMCardOutput` type (shape returned by LLM JSON: `{ title, cards }`) — uses `LLMCardItem` discriminated union
+- [x] Export all types from `packages/shared/mod.ts`
 
 ---
 
@@ -154,19 +165,19 @@ File: `supabase/migrations/<timestamp>_rpc_functions.sql`
 
 Directory: `supabase/functions/ingest/`
 
-- [ ] Create `supabase/functions/ingest/deno.json`
-- [ ] Create `supabase/functions/ingest/index.ts` — Hono app wrapped in `Deno.serve()`
-- [ ] Implement `POST /` handler:
-  - [ ] Extract `Authorization` header, call `supabase.auth.getUser()` → 401 if missing/invalid
-  - [ ] Parse and validate request body (`type`, `value`):
+- [x] Create `supabase/functions/ingest/deno.json`
+- [x] Create `supabase/functions/ingest/index.ts` — Hono app wrapped in `Deno.serve()`
+- [x] Implement `POST /` handler:
+  - [x] Extract `Authorization` header, call `supabase.auth.getUser()` → 401 if missing/invalid
+  - [x] Parse and validate request body (`type`, `value`):
     - URL: validate format with URL constructor; reject non-http/https
-    - Text: validate min 3 chars, max 1000 chars
-  - [ ] INSERT into `queue_items` with status `pending`
-  - [ ] Compute next `feed_item.position`: `SELECT COALESCE(MAX(position), 0) + 1 FROM feed_items WHERE user_id = $uid`
-  - [ ] INSERT into `feed_items` (post_id=null, state='unread', queue_item_id)
-  - [ ] Return `202 { queue_item_id, feed_item_id }`
-- [ ] Add input sanitization (strip dangerous characters from text input)
-- [ ] Add structured error responses `{ error: string }` with appropriate HTTP status codes
+    - Text: validate min 3 chars, max 10,000 chars
+  - [x] INSERT into `queue_items` with status `pending`
+  - [x] Compute next `feed_item.position`: `SELECT MAX(position) + 1 FROM feed_items WHERE user_id = $uid`
+  - [x] INSERT into `feed_items` (post_id=null, state='unread', queue_item_id)
+  - [x] Return `202 { queue_item_id, feed_item_id }`
+- [x] Add input sanitization (strip dangerous characters from text input)
+- [x] Add structured error responses `{ error: string }` with appropriate HTTP status codes
 - [ ] Test locally: `supabase functions serve ingest --env-file .env.local`
 
 ---
@@ -179,37 +190,37 @@ Directory: `worker/`
 
 ### 4.1 Worker scaffold
 
-- [ ] Create `worker/deno.json` (name: `@brainheal/worker`, tasks: `dev`, `start`)
-- [ ] Create `worker/main.ts` — entry point, starts poll loop, health check server
-- [ ] Create `worker/processor.ts` — main processing logic
-- [ ] Create `worker/llm.ts` — LLM abstraction layer
-- [ ] Create `worker/fetcher.ts` — article fetch + Readability extraction
-- [ ] Create `worker/budget.ts` — daily cost budget enforcement
-- [ ] Create `worker/Dockerfile`
-- [ ] Create `worker/fly.toml`
+- [x] Create `worker/deno.json` (name: `@brainheal/worker`, tasks: `dev`, `start`)
+- [x] Create `worker/main.ts` — entry point, starts poll loop, health check server
+- [x] Create `worker/processor.ts` — main processing logic
+- [x] Create `worker/llm.ts` — LLM abstraction layer
+- [x] Create `worker/fetcher.ts` — article fetch + Readability extraction
+- [x] Create `worker/budget.ts` — daily cost budget enforcement
+- [x] Create `worker/Dockerfile`
+- [x] Create `worker/fly.toml`
 
 ### 4.2 LLM abstraction (`worker/llm.ts`)
 
-- [ ] Define `LLMProvider` interface: `{ summarize(content: string): Promise<LLMCardOutput> }`
-- [ ] Implement `OpenAIProvider` class using `npm:openai`
-- [ ] Implement `AnthropicProvider` class using `npm:@anthropic-ai/sdk`
-- [ ] Factory function `createLLMProvider(provider: string, apiKey: string): LLMProvider`
-- [ ] Implement structured prompt (system prompt + article content)
-- [ ] Parse and validate LLM JSON response against `LLMCardOutput` type
-- [ ] Retry once on malformed JSON (stricter prompt on retry)
+- [x] Define `LLMProvider` interface: `{ summarize(content: string): Promise<LLMCardOutput> }`
+- [x] Implement `OpenAIProvider` class using `npm:openai`
+- [x] Implement `AnthropicProvider` class using `npm:@anthropic-ai/sdk`
+- [x] Factory function `createLLMProvider(provider: string, apiKey: string): LLMProvider`
+- [x] Implement structured prompt (system prompt + article content)
+- [x] Parse and validate LLM JSON response against `LLMCardOutput` type
+- [x] Retry once on malformed JSON (stricter prompt on retry)
 
 ### 4.3 Article fetcher (`worker/fetcher.ts`)
 
-- [ ] Implement `fetchArticle(url: string): Promise<{ text: string; title: string; images: string[] }>`
-- [ ] Use `fetch()` with appropriate headers (user-agent)
-- [ ] Extract article body using `npm:@mozilla/readability` + `npm:linkedom` (DOM parser for Deno)
-- [ ] Handle HTTP errors (4xx → paywall/not found; 5xx → retry)
-- [ ] Handle redirects, timeouts (10s max)
-- [ ] For free text input: implement `researchTopic(topic: string): Promise<string>` (LLM first-pass synthesis)
+- [x] Implement `fetchArticle(url: string): Promise<{ text: string; title: string; images: string[] }>`
+- [x] Use `fetch()` with appropriate headers (user-agent)
+- [x] Extract article body using `npm:@mozilla/readability` + `npm:linkedom` (DOM parser for Deno)
+- [x] Handle HTTP errors (4xx → paywall/not found; 5xx → retry)
+- [x] Handle redirects, timeouts (10s max)
+- [x] For free text input: implement `researchTopic(topic: string): Promise<string>` (LLM first-pass synthesis)
 
 ### 4.4 Budget enforcement (`worker/budget.ts`)
 
-- [ ] Implement `checkDailyBudget(supabase, userId): Promise<boolean>`:
+- [x] Implement `checkDailyBudget(supabase, userId): Promise<boolean>`:
   - Fetch user's `billing_tier` from `profiles`
   - Compute `monthly_budget` based on tier (env var config: `FREE_MONTHLY_BUDGET_USD`, `PAID_MONTHLY_BUDGET_USD`)
   - Query `cost_records` for current month's spend
@@ -218,41 +229,42 @@ Directory: `worker/`
 
 ### 4.5 Core processor (`worker/processor.ts`)
 
-- [ ] Implement `processNextItem(supabase, llm): Promise<void>`:
-  - [ ] `SELECT ... FROM queue_items WHERE status='pending' ORDER BY created_at ASC LIMIT 1 FOR UPDATE SKIP LOCKED`
-  - [ ] If no item: return immediately
-  - [ ] `UPDATE queue_items SET status='processing', started_at=now()`
-  - [ ] Check daily budget — if over: revert to pending, return
-  - [ ] Branch on `input_type`:
+- [x] Implement `processNextItem(supabase, llm): Promise<void>`:
+  - [x] `SELECT ... FROM queue_items WHERE status='pending' ORDER BY created_at ASC LIMIT 1 FOR UPDATE SKIP LOCKED`
+  - [x] If no item: return immediately
+  - [x] `UPDATE queue_items SET status='processing', started_at=now()`
+  - [x] Check daily budget — if over: revert to pending, return
+  - [x] Branch on `input_type`:
     - `url`: call `fetchArticle(url)`
     - `text`: call `researchTopic(text)` then treat result as article content
-  - [ ] Call `llm.summarize(content)` → `{ title, cards }`
-  - [ ] For `image` cards: upload images to Supabase Storage → get public URLs
-  - [ ] `INSERT INTO posts (user_id, source_url, source_text, title, status='ready')`
-  - [ ] `INSERT INTO cards (post_id, position, content_type, text_content, media_url, media_caption)` for each card
-  - [ ] `UPDATE feed_items SET post_id=<new post id>` (Realtime fires here)
-  - [ ] `INSERT INTO cost_records (user_id, queue_item_id, tokens_input, tokens_output, cost_usd, model_used)`
-  - [ ] `UPDATE queue_items SET status='completed', completed_at=now()`
+  - [x] Call `llm.summarize(content)` → `{ title, cards }`
+  - [x] For `image` cards: upload images to Supabase Storage → get public URLs
+  - [x] `INSERT INTO posts (user_id, source_url, source_text, title, status='ready')`
+  - [x] `INSERT INTO cards (post_id, position, content_type, text_content, media_url, media_caption)` for each card
+  - [x] `UPDATE feed_items SET post_id=<new post id>` (Realtime fires here)
+  - [x] `INSERT INTO cost_records (user_id, queue_item_id, tokens_input, tokens_output, cost_usd, model_used)`
+  - [x] `UPDATE queue_items SET status='completed', completed_at=now()`
 
 ### 4.6 Error handling in processor
 
-- [ ] Wrap processing in try/catch; on error:
+- [x] Wrap processing in try/catch; on error:
   - Increment `retry_count`
   - If `retry_count < 2`: set status back to `pending` (re-queued)
   - If `retry_count >= 2`: set status to `failed`, `UPDATE posts SET status='failed', error_message=...`
-- [ ] Log structured JSON: `{ level, message, queue_item_id, user_id, error }`
+- [x] Log structured JSON: `{ level, message, queue_item_id, user_id, error }`
 
 ### 4.7 Poll loop & health check (`worker/main.ts`)
 
-- [ ] Implement poll loop: `setInterval(processNextItem, 5000)` (5s interval, from env `POLL_INTERVAL_MS`)
-- [ ] Implement health check HTTP server on port 8080: `GET /health` → `200 { status: 'ok' }`
-- [ ] Handle graceful shutdown on `SIGTERM`
+- [x] Implement poll loop: `setInterval(processNextItem, 5000)` (5s interval, from env `POLL_INTERVAL_MS`)
+- [x] Implement health check HTTP server on port 8080: `GET /health` → `200 { status: 'ok' }`
+- [x] Handle graceful shutdown on `SIGTERM`
 
 ### 4.8 Dockerfile
 
-- [ ] Use `denoland/deno:2.7` base image
-- [ ] Copy `worker/` files
-- [ ] `CMD ["deno", "run", "--allow-all", "main.ts"]`
+- [x] Use `denoland/deno:2.2.2` base image (pinned for reproducibility)
+- [x] Copy `worker/` and `packages/shared/` files; cache dependencies
+- [x] Runs as non-root user (`deno`)
+- [x] `CMD ["deno", "run", "--allow-all", "main.ts"]`
 
 ---
 
