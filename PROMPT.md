@@ -2,9 +2,9 @@
 
 0b. The source code of the project is in src/*. Study it using up to 100 subagents. Consider searching for TODO, minimal implementations and placeholders.
 
-0c. Study @IMPLEMENTATION_PLAN.md to understand the proposed implementation approach.
+0c. Study @IMPLEMENTATION_PLAN.md to understand the proposed implementation approach and the current implementation status.
 
-1. Pick the most important item to address/implement. Your goal is to do only one thing.
+1. Pick the most important item to address/implement. Your goal is to do only one thing, not the whole plan, nor multiple phases.
 2. After implementing functionality or resolving problems, run the tests for that unit of code that was improved. If functionality is missing then it's your job to add it as per the application specifications. Think hard.
 3. Update implementation plan with the status once the build and tests pass for the respective item.
 4. Add changed code and implementation plan with "git add -A" via bash then do a "git commit" with a message that describes the changes you made to the code. After the commit do a "git push" to push the changes to the remote repository.

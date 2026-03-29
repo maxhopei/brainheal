@@ -1,0 +1,25 @@
+.saveButton {
+  background: none;
+  border: none;
+  padding: 6px;
+  font-size: 22px;
+  color: var(--color-text-muted);
+  transition: color 0.15s ease, transform 0.1s ease;
+  line-height: 1;
+}
+
+.saveButton:hover:not(:disabled) {
+  color: var(--color-text);
+}
+
+.saveButton:active:not(:disabled) {
+  transform: scale(0.85);
+}
+
+.saveButton:disabled {
+  opacity: 0.5;
+}
+
+.saved {
+  color: #fbbf24;
+}

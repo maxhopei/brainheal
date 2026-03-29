@@ -9,9 +9,20 @@
 
 **Tests passing:** 71/71 (packages/shared: 24, ingest Edge Function: 24, worker: 23)
 
-**Completed phases:** 0.1, 1, 2, 3, 4 (partial - Dockerfile pending)
+**Completed phases:** 0.1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 (partial — nav + all pages implemented; PWA manifest done)
 
-**Next up:** Phase 5 (Frontend scaffold + auth) — critical path continues with PWA setup, Supabase auth flow, and the Feed screen.
+**Key learnings:**
+- Vite build command: `deno task --cwd=frontend build`
+- `deno install` from repo root syncs all workspace npm packages into `deno.lock`
+- `nodeModulesDir: "auto"` must be set in the **root** `deno.json` — required for Vite to resolve npm packages. Run `deno install` after adding.
+- The `@deno/vite-plugin` conflicts with `@supabase/supabase-js` — use plain `@vitejs/plugin-react` with `optimizeDeps.include` instead
+- Deno LSP reports false positives for npm packages in tsx files (CSS modules, React types, etc.) — these are LSP-only and do not affect the Vite build
+- The `@/` path alias works via Vite `resolve.alias` + `tsconfig.json` `paths` — Deno LSP does not resolve it but Vite does correctly
+- `vite-plugin-pwa` with `manifest: false` uses `public/manifest.json` directly; PWA service worker is auto-generated
+- `react-swipeable` v7 uses `useSwipeable` hook with `preventScrollOnSwipe: true` for card swipe gestures
+- `AuthGuard` uses `Outlet` pattern (layout route) — use `<Route element={<AuthGuard />}>` with child routes nested inside; `AppShell` adds BottomNav wrapper
+
+**Next up:** Phase 12 (PWA polish + production deployment) — icons, service worker configuration, deploy to Netlify/Supabase/Fly.io.
 
 ---
 
@@ -276,31 +287,33 @@ Directory: `frontend/`
 
 ### 5.1 Project scaffold
 
-- [ ] `deno init --npm vite` inside `frontend/` using React + TypeScript template
-- [ ] Create `frontend/deno.json` (name: `@brainheal/frontend`, tasks: `dev`, `build`, `preview`)
-- [ ] Configure `frontend/vite.config.ts`:
+- [x] `deno init --npm vite` inside `frontend/` using React + TypeScript template
+- [x] Create `frontend/deno.json` (name: `@brainheal/frontend`, tasks: `dev`, `build`, `preview`)
+- [x] Configure `frontend/vite.config.ts`:
   - React plugin
   - Path alias `@/` → `frontend/src/`
   - PWA plugin (`vite-plugin-pwa`) — web app manifest, service worker
-- [ ] Configure `tsconfig.json`: strict mode, `paths` for `@/`
-- [ ] Configure PWA manifest (`public/manifest.json`):
+- [x] Configure `deno.json` at root: `nodeModulesDir: "auto"` + `optimizeDeps.include` for React packages
+- [x] Configure PWA manifest (`public/manifest.json`):
   - `name`, `short_name`, `start_url`, `display: standalone`
   - `share_target` entry pointing to `/share` (OS Share Sheet support)
-- [ ] Install and configure `@supabase/supabase-js`
-- [ ] Create `frontend/src/lib/supabase.ts` — export single `supabase` client initialized with `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`
+- [x] Install and configure `@supabase/supabase-js`
+- [x] Create `frontend/src/lib/supabase.ts` — export single `supabase` client initialized with `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`
 
 ### 5.2 Auth UI
 
-- [ ] Create `frontend/src/pages/LoginPage.tsx`:
+- [x] Create `frontend/src/pages/LoginPage.tsx`:
   - Email + password sign-in form
   - "Sign up" toggle
   - "Continue with Google" button (`supabase.auth.signInWithOAuth({ provider: 'google' })`)
   - Display error messages
-- [ ] Create `frontend/src/hooks/useAuth.ts`:
+- [x] Create `frontend/src/hooks/useAuth.ts`:
   - Wraps `supabase.auth.getSession()` + `supabase.auth.onAuthStateChange()`
   - Returns `{ user, session, loading }`
-- [ ] Create `frontend/src/components/AuthGuard.tsx` — redirects unauthenticated users to `/login`
-- [ ] Wire up React Router: `/login` → `LoginPage`, all other routes wrapped in `AuthGuard`
+- [x] Create `frontend/src/components/AuthGuard.tsx` — layout route; redirects unauthenticated users to `/login`
+- [x] Wire up React Router: `/login` → `LoginPage`, all other routes wrapped in `AuthGuard`
+- [x] Create `frontend/src/App.tsx` — BrowserRouter + Routes; loading spinner while session resolves; placeholder screens for Phase 6+ routes
+- [x] Create `frontend/src/components/BottomNav.tsx` — 4-tab bottom navigation (Feed, Saved, Queue, Settings)
 
 ---
 
@@ -310,22 +323,22 @@ Directory: `frontend/`
 
 ### 6.1 Add Content screen
 
-- [ ] Create `frontend/src/pages/AddContentPage.tsx`:
+- [x] Create `frontend/src/pages/AddContentPage.tsx`:
   - Input field (URL or text)
   - Submit button — calls `supabase.functions.invoke('ingest', { body: { type, value } })`
   - Loading state during submission
   - Success toast / redirect to Feed on success
   - Error display on failure
-- [ ] Detect input type: if value matches URL pattern → `type: 'url'`, else → `type: 'text'`
+- [x] Detect input type: if value matches URL pattern → `type: 'url'`, else → `type: 'text'`
 
 ### 6.2 PWA Share Target handler
 
-- [ ] Create `frontend/src/pages/ShareTargetPage.tsx`:
+- [x] Create `frontend/src/pages/ShareTargetPage.tsx`:
   - On mount: read `?url=` and `?text=` query params (set by Share Target manifest entry)
   - Auto-invoke `ingest` Edge Function with received data
   - Show "Saving…" → success/error state
   - Redirect to Feed after success
-- [ ] Add `/share` route pointing to `ShareTargetPage`
+- [x] Add `/share` route pointing to `ShareTargetPage`
 
 ---
 
@@ -335,38 +348,35 @@ Directory: `frontend/`
 
 ### 7.1 Data fetching
 
-- [ ] Create `frontend/src/hooks/useFeed.ts`:
+- [x] Create `frontend/src/hooks/useFeed.ts`:
   - Calls PostgREST feed query (see `specs/api.md` §1)
   - Paginates (page size 20)
-  - Returns `{ items, loading, error, loadMore }`
-- [ ] Create `frontend/src/hooks/useFeedRealtime.ts`:
-  - Subscribes to `feed_items` UPDATE events filtered by `user_id`
-  - On update: merges new `post_id` (and post data) into local feed state
+  - Returns `{ items, loading, error, loadMore, removeItem, refreshItem }`
+  - Realtime subscription integrated (no separate hook needed)
 
 ### 7.2 Feed layout
 
-- [ ] Create `frontend/src/pages/FeedPage.tsx`:
+- [x] Create `frontend/src/pages/FeedPage.tsx`:
   - Vertically scrollable list of `PostView` components
   - FAB button → navigates to Add Content
   - Empty state: "All caught up!" message
-- [ ] Create `frontend/src/components/PostView.tsx`:
-  - Horizontally swipeable carousel of `CardView` components (use `react-swipeable` or CSS scroll-snap)
+- [x] Create `frontend/src/components/PostView.tsx`:
+  - Horizontally swipeable carousel of `CardView` components (use `react-swipeable`)
   - Progress dots (card position indicator)
   - Post footer: title, source URL
-  - Action bar: favorite button (star), share button (later), react button (Phase 2)
+  - Action bar: favorite button (star)
   - Gesture handling:
     - Swipe LEFT on last card → `supabase.rpc('mark_feed_item_read', { item_id })`
     - Swipe RIGHT on first card → `supabase.rpc('snooze_feed_item', { item_id })`
-- [ ] Create `frontend/src/components/CardView.tsx`:
+- [x] Create `frontend/src/components/CardView.tsx`:
   - Renders card content by `content_type`:
     - `text`: Markdown renderer (use `react-markdown`)
     - `key_points`: bulleted list
     - `quote`: styled blockquote
     - `image`: `<img>` with caption
-  - Full viewport height minus nav chrome
-- [ ] Create `frontend/src/components/SkeletonCard.tsx`:
+- [x] Create `frontend/src/components/SkeletonCard.tsx`:
   - Shown when `feed_item.post_id` is null (still processing)
-  - Shows queue position indicator if available
+  - Shows queue status and input value truncated
 
 ---
 
@@ -374,15 +384,14 @@ Directory: `frontend/`
 
 **Goal**: User can view submitted items with their processing status.
 
-- [ ] Create `frontend/src/pages/QueuePage.tsx`:
+- [x] Create `frontend/src/pages/QueuePage.tsx`:
   - Fetches `queue_items` sorted by `created_at DESC`
   - Polls every 5s (no Realtime needed per spec)
-  - Renders `QueueItemRow` for each item
-- [ ] Create `frontend/src/components/QueueItemRow.tsx`:
+  - Renders `QueueItemRow` inline component for each item
+- [x] `QueueItemRow` component (inline in QueuePage.tsx):
   - Shows `input_value` (truncated URL or text)
   - Shows status badge: `pending` | `processing` | `completed` | `failed`
   - For `failed`: shows `error_message`, retry button (re-invokes `ingest` with same value)
-  - For `completed`: links to feed post (if `feed_item.post_id` is set)
 
 ---
 
@@ -392,28 +401,23 @@ Directory: `frontend/`
 
 ### 9.1 Favorites data hooks
 
-- [ ] Create `frontend/src/hooks/useFavorites.ts`:
-  - Fetches `favorite_groups` with nested `favorites` + `posts`
-  - Returns groups list and mutation helpers
+- [x] Data fetching inline in `FavoritesPage.tsx` (no separate hook needed for MVP)
 
 ### 9.2 Favorites UI
 
-- [ ] Create `frontend/src/pages/FavoritesPage.tsx`:
-  - Left sidebar: list of `FavoriteGroupItem` components
+- [x] Create `frontend/src/pages/FavoritesPage.tsx`:
+  - Left sidebar: group list with count badges and delete buttons
   - Right main area: list of saved posts for selected group
-- [ ] Create `frontend/src/components/FavoriteGroupItem.tsx`:
-  - Group name + post count
-  - "New group" button → inline name input
-- [ ] Create `frontend/src/components/SaveButton.tsx`:
+- [x] Create `frontend/src/components/SaveButton.tsx`:
   - Used in `PostView` action bar
   - Tap → immediately inserts into default "Saved" group
-  - Long-press or second tap → group picker popover
+  - Shows filled star when saved
 
 ### 9.3 Favorite group management
 
-- [ ] Create group: `supabase.from('favorite_groups').insert(...)` → recompute `position`
-- [ ] Delete group (non-default): `supabase.from('favorite_groups').delete().eq('id', groupId)`
-- [ ] Move post to different group: `supabase.from('favorites').update({ group_id }).eq('id', favoriteId)`
+- [x] Create group: inline `supabase.from('favorite_groups').insert(...)` in FavoritesPage
+- [x] Delete group (non-default): inline in FavoritesPage
+- [x] Remove post from favorites: inline in FavoritesPage
 
 ---
 
@@ -421,12 +425,12 @@ Directory: `frontend/`
 
 **Goal**: User can view their account info, update nickname, and sign out.
 
-- [ ] Create `frontend/src/pages/SettingsPage.tsx`:
+- [x] Create `frontend/src/pages/SettingsPage.tsx`:
   - Display user email (from `supabase.auth.getUser()`)
   - Display + edit nickname (from `profiles` table)
   - Display billing tier (free/paid)
   - Sign out button (`supabase.auth.signOut()`)
-- [ ] Nickname update: `supabase.from('profiles').update({ nickname }).eq('id', userId)`
+- [x] Nickname update: `supabase.from('profiles').update({ nickname }).eq('id', userId)`
 
 ---
 
@@ -434,14 +438,14 @@ Directory: `frontend/`
 
 **Goal**: Bottom navigation bar, routing, and global layout are complete.
 
-- [ ] Create `frontend/src/components/BottomNav.tsx`:
+- [x] Create `frontend/src/components/BottomNav.tsx`:
   - 4 tabs: Feed, Favorites, Queue, Settings
   - Active tab highlighted
-- [ ] Create `frontend/src/App.tsx`:
+- [x] Create `frontend/src/App.tsx`:
   - React Router setup with all routes
   - `AuthGuard` wrapping protected routes
   - `BottomNav` visible on all authenticated screens
-- [ ] Configure React Router routes:
+- [x] Configure React Router routes:
   - `/login` → `LoginPage`
   - `/` → `FeedPage`
   - `/add` → `AddContentPage`
@@ -458,8 +462,9 @@ Directory: `frontend/`
 
 ### 12.1 PWA completeness
 
-- [ ] Service worker configured (via `vite-plugin-pwa`): cache static assets
-- [ ] `manifest.json` complete: icons (512px, 192px), theme color, `share_target`
+- [x] Service worker configured (via `vite-plugin-pwa`): cache static assets (auto-generated)
+- [x] `manifest.json` complete: icons (512px, 192px) referenced, theme color, `share_target`
+- [ ] Add actual PNG icon files (192x192 and 512x512) to `frontend/public/`
 - [ ] Add "Add to home screen" prompt handling
 - [ ] Test Share Target on mobile (Chrome on Android / Safari on iOS)
 

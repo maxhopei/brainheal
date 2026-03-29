@@ -6,11 +6,23 @@
     "./supabase/functions/ingest",
     "./supabase/functions/stripe-webhook"
   ],
+  "nodeModulesDir": "auto",
   "imports": {
     "@brainheal/shared": "./packages/shared/mod.ts",
+    "@deno/vite-plugin": "npm:@deno/vite-plugin@^1.0.6",
     "hono": "npm:hono@^4",
     "hono/": "npm:hono@^4/",
     "@supabase/supabase-js": "npm:@supabase/supabase-js@^2",
+    "react": "npm:react@^18",
+    "react/": "npm:react@^18/",
+    "react-dom": "npm:react-dom@^18",
+    "react-dom/": "npm:react-dom@^18/",
+    "react-router-dom": "npm:react-router-dom@^6",
+    "react-markdown": "npm:react-markdown@^9",
+    "react-swipeable": "npm:react-swipeable@^7",
+    "vite": "npm:vite@^5",
+    "@vitejs/plugin-react": "npm:@vitejs/plugin-react@^4",
+    "vite-plugin-pwa": "npm:vite-plugin-pwa@^0.21",
     "@std/assert": "jsr:@std/assert@^1"
   },
   "tasks": {
