@@ -48,8 +48,8 @@ Progress tracking legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 ### 0.2 Supabase project
 
-- [ ] Install Supabase CLI (`brew install supabase/tap/supabase`)
-- [ ] `supabase init` — creates `supabase/` directory with `config.toml`
+- [x] Install Supabase CLI (`brew install supabase/tap/supabase`)
+- [x] `supabase init` — creates `supabase/` directory with `config.toml`
 - [ ] Configure `supabase/config.toml`:
   - Enable email auth
   - Enable Google OAuth (client ID + secret via `.env.local`)
@@ -64,8 +64,8 @@ Progress tracking legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 ### 0.3 Fly.io setup
 
-- [ ] Install `flyctl` (`brew install flyctl`)
-- [ ] `fly auth login`
+- [x] Install `flyctl` (`brew install flyctl`)
+- [x] `fly auth login`
 - [ ] `fly launch --name brainheal-worker --no-deploy` inside `worker/` — generates `fly.toml`
 - [ ] Configure secrets on Fly.io app:
   ```
