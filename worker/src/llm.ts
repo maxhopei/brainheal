@@ -1,11 +1,12 @@
 /**
  * worker/src/llm.ts — LLM abstraction layer.
  *
- * Provides a unified interface for OpenAI and Anthropic providers.
+ * Provides a unified interface for OpenAI, Anthropic, and AWS Bedrock providers.
  * The provider is selected at runtime via the LLM_PROVIDER environment variable.
  */
 
 import type { LLMCardOutput, LLMCardItem } from '@brainheal/shared';
+import { signRequest } from './aws_sigv4.ts';
 
 // ---------------------------------------------------------------------------
 // Interface
@@ -355,14 +356,234 @@ export class AnthropicProvider implements LLMProvider {
 }
 
 // ---------------------------------------------------------------------------
+// AWS Bedrock provider (Converse API)
+// ---------------------------------------------------------------------------
+
+/**
+ * Bedrock on-demand per-token pricing (USD per token).
+ * Keyed by modelId. Used for cost tracking.
+ * Source: https://aws.amazon.com/bedrock/pricing/ (as of 2025)
+ * Prices are per 1,000 tokens — divided here to get per-token rates.
+ */
+const BEDROCK_COSTS: Record<string, { input: number; output: number }> = {
+  // Anthropic Claude 3.5 Haiku
+  'anthropic.claude-3-5-haiku-20241022-v1:0': {
+    input: 0.0008 / 1_000,
+    output: 0.004 / 1_000,
+  },
+  // Anthropic Claude 3.5 Sonnet
+  'anthropic.claude-3-5-sonnet-20241022-v2:0': {
+    input: 0.003 / 1_000,
+    output: 0.015 / 1_000,
+  },
+  // Anthropic Claude 3 Haiku
+  'anthropic.claude-3-haiku-20240307-v1:0': {
+    input: 0.00025 / 1_000,
+    output: 0.00125 / 1_000,
+  },
+  // Anthropic Claude 3 Sonnet
+  'anthropic.claude-3-sonnet-20240229-v1:0': {
+    input: 0.003 / 1_000,
+    output: 0.015 / 1_000,
+  },
+  // Amazon Nova Micro
+  'amazon.nova-micro-v1:0': {
+    input: 0.000035 / 1_000,
+    output: 0.00014 / 1_000,
+  },
+  // Amazon Nova Lite
+  'amazon.nova-lite-v1:0': {
+    input: 0.00006 / 1_000,
+    output: 0.00024 / 1_000,
+  },
+  // Amazon Nova Pro
+  'amazon.nova-pro-v1:0': {
+    input: 0.0008 / 1_000,
+    output: 0.0032 / 1_000,
+  },
+};
+
+export class BedrockProvider implements LLMProvider {
+  private readonly model: string;
+  private readonly accessKeyId: string;
+  private readonly secretAccessKey: string;
+  private readonly region: string;
+
+  constructor(
+    accessKeyId: string,
+    secretAccessKey: string,
+    region = 'us-east-1',
+    model = 'anthropic.claude-3-5-haiku-20241022-v1:0',
+  ) {
+    this.accessKeyId = accessKeyId;
+    this.secretAccessKey = secretAccessKey;
+    this.region = region;
+    this.model = model;
+  }
+
+  private async callBedrock(
+    systemPrompt: string,
+    userMessage: string,
+  ): Promise<{ content: string; inputTokens: number; outputTokens: number }> {
+    const url = `https://bedrock-runtime.${this.region}.amazonaws.com/model/${encodeURIComponent(this.model)}/converse`;
+
+    const requestBody = JSON.stringify({
+      system: [{ text: systemPrompt }],
+      messages: [
+        {
+          role: 'user',
+          content: [{ text: userMessage }],
+        },
+      ],
+      inferenceConfig: {
+        maxTokens: 2048,
+        temperature: 0.3,
+      },
+    });
+
+    const signedHeaders = await signRequest({
+      method: 'POST',
+      url,
+      headers: { 'content-type': 'application/json' },
+      body: requestBody,
+      accessKeyId: this.accessKeyId,
+      secretAccessKey: this.secretAccessKey,
+      region: this.region,
+      service: 'bedrock',
+    });
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...signedHeaders,
+      },
+      body: requestBody,
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Bedrock API error ${response.status}: ${errText}`);
+    }
+
+    const data = await response.json() as {
+      output: {
+        message: {
+          content: Array<{ text?: string }>;
+        };
+      };
+      usage: {
+        inputTokens: number;
+        outputTokens: number;
+      };
+    };
+
+    const content = data.output?.message?.content?.find((b) => b.text !== undefined)?.text ?? '';
+    return {
+      content,
+      inputTokens: data.usage?.inputTokens ?? 0,
+      outputTokens: data.usage?.outputTokens ?? 0,
+    };
+  }
+
+  /**
+   * Calculates cost in USD for a Bedrock call.
+   * Falls back to 0 with a warning if the model is not in the pricing table.
+   */
+  private calculateCost(inputTokens: number, outputTokens: number): number {
+    const rates = BEDROCK_COSTS[this.model];
+    if (!rates) {
+      console.warn(
+        `[BedrockProvider] No pricing data for model "${this.model}". Cost recorded as $0.`,
+      );
+      return 0;
+    }
+    return inputTokens * rates.input + outputTokens * rates.output;
+  }
+
+  async summarize(content: string): Promise<LLMSummarizeResult> {
+    let result: { content: string; inputTokens: number; outputTokens: number };
+    let output: LLMCardOutput;
+    let totalInput = 0;
+    let totalOutput = 0;
+
+    try {
+      result = await this.callBedrock(
+        SYSTEM_PROMPT,
+        `Summarize this article into cards:\n\n${content}`,
+      );
+      totalInput += result.inputTokens;
+      totalOutput += result.outputTokens;
+      output = parseAndValidateLLMOutput(result.content);
+    } catch (firstError) {
+      console.warn('First Bedrock attempt failed, retrying:', firstError);
+      try {
+        result = await this.callBedrock(
+          SYSTEM_PROMPT + STRICT_RETRY_SUFFIX,
+          `Summarize this article into cards:\n\n${content}`,
+        );
+        totalInput += result.inputTokens;
+        totalOutput += result.outputTokens;
+        output = parseAndValidateLLMOutput(result.content);
+      } catch (retryError) {
+        throw new Error(`Bedrock summarize failed after retry: ${retryError}`);
+      }
+    }
+
+    const cost = this.calculateCost(totalInput, totalOutput);
+
+    return {
+      output,
+      usage: {
+        tokens_input: totalInput,
+        tokens_output: totalOutput,
+        cost_usd: cost,
+        model_used: this.model,
+      },
+    };
+  }
+
+  async researchTopic(topic: string): Promise<string> {
+    const result = await this.callBedrock(
+      RESEARCH_SYSTEM_PROMPT,
+      `Write a comprehensive overview of this topic: ${topic}`,
+    );
+    return result.content;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Factory function
 // ---------------------------------------------------------------------------
 
-export function createLLMProvider(provider: string, apiKey: string, model?: string): LLMProvider {
+/**
+ * Creates an LLM provider instance based on the provider name and credentials.
+ *
+ * For "openai" and "anthropic": pass apiKey as the second argument.
+ * For "bedrock": pass the AWS credentials object as bedrockCredentials.
+ *   apiKey is ignored when provider is "bedrock".
+ */
+export function createLLMProvider(
+  provider: string,
+  apiKey: string,
+  model?: string,
+  bedrockCredentials?: {
+    accessKeyId: string;
+    secretAccessKey: string;
+    region: string;
+  },
+): LLMProvider {
   if (provider === 'openai') {
     return new OpenAIProvider(apiKey, model);
   } else if (provider === 'anthropic') {
     return new AnthropicProvider(apiKey, model);
+  } else if (provider === 'bedrock') {
+    const creds = bedrockCredentials ?? {
+      accessKeyId: '',
+      secretAccessKey: '',
+      region: 'us-east-1',
+    };
+    return new BedrockProvider(creds.accessKeyId, creds.secretAccessKey, creds.region, model);
   }
-  throw new Error(`Unknown LLM provider: "${provider}". Use "openai" or "anthropic".`);
+  throw new Error(`Unknown LLM provider: "${provider}". Use "openai", "anthropic", or "bedrock".`);
 }

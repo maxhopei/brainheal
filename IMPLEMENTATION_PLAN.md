@@ -7,9 +7,9 @@
 
 ## Implementation Status — Updated 2026-03-30
 
-**Tests passing:** 71/71 (packages/shared: 24, ingest Edge Function: 24, worker: 23)
+**Tests passing:** 109/109 (packages/shared: 24, ingest Edge Function: 24, worker: 61)
 
-**Completed phases:** 0.1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 (partial — nav + all pages implemented; PWA manifest done)
+**Completed phases:** 0.1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 (partial — nav + all pages implemented; PWA manifest done), 13 (AWS Bedrock LLM provider — fully implemented)
 
 **Key learnings:**
 - Vite build command: `deno task --cwd=frontend build`
@@ -22,7 +22,7 @@
 - `react-swipeable` v7 uses `useSwipeable` hook with `preventScrollOnSwipe: true` for card swipe gestures
 - `AuthGuard` uses `Outlet` pattern (layout route) — use `<Route element={<AuthGuard />}>` with child routes nested inside; `AppShell` adds BottomNav wrapper
 
-**Next up:** Phase 12 (PWA polish + production deployment) and Phase 13 (AWS Bedrock LLM provider) — these are independent and can proceed in parallel.
+**Next up:** Phase 12 (PWA polish + production deployment) is the remaining work.
 
 ---
 
@@ -499,53 +499,47 @@ Directory: `frontend/`
 
 ### 13.1 `BedrockProvider` class (`worker/src/llm.ts`)
 
-- [ ] Add `BedrockProvider` class implementing `LLMProvider`
-- [ ] Constructor: `(accessKeyId: string, secretAccessKey: string, region: string, model?: string)`
+- [x] Add `BedrockProvider` class implementing `LLMProvider`
+- [x] Constructor: `(accessKeyId: string, secretAccessKey: string, region: string, model?: string)`
   - Default model: `anthropic.claude-3-5-haiku-20241022-v1:0`
   - Default region: `us-east-1`
-- [ ] Implement `callBedrock(systemPrompt: string, userMessage: string): Promise<{ content: string; inputTokens: number; outputTokens: number }>`:
+- [x] Implement `callBedrock(systemPrompt: string, userMessage: string): Promise<{ content: string; inputTokens: number; outputTokens: number }>`:
   - Use the [Bedrock Converse API](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference-call.html): `POST https://bedrock-runtime.<region>.amazonaws.com/model/<modelId>/converse`
-  - Sign requests with AWS Signature Version 4 (SigV4) — implement or import a minimal SigV4 signer (no AWS SDK; use raw `fetch`)
+  - Sign requests with AWS Signature Version 4 (SigV4) — implemented in `worker/src/aws_sigv4.ts` using Web Crypto API
   - Map `system` prompt and `user` message to the Converse API `messages` + `system` fields
   - Parse response: `output.message.content[].text` for content; `usage.inputTokens` / `usage.outputTokens`
-- [ ] Implement `summarize(content: string): Promise<LLMSummarizeResult>`:
+- [x] Implement `summarize(content: string): Promise<LLMSummarizeResult>`:
   - Reuse `SYSTEM_PROMPT` and `STRICT_RETRY_SUFFIX` from existing providers
   - Apply same retry-on-malformed-JSON pattern as `OpenAIProvider` / `AnthropicProvider`
-  - Cost calculation: use Bedrock on-demand per-token rates for the active model (store rates as a lookup map keyed by model ID; fall back to `0` if model unknown and log a warning)
-- [ ] Implement `researchTopic(topic: string): Promise<string>`:
+  - Cost calculation: uses Bedrock on-demand per-token rates for the active model (stored in `BEDROCK_COSTS` lookup map keyed by model ID; falls back to `0` if model unknown and logs a warning)
+- [x] Implement `researchTopic(topic: string): Promise<string>`:
   - Reuse `RESEARCH_SYSTEM_PROMPT`
   - Single Converse API call; return text content
 
 ### 13.2 SigV4 request signing
 
-- [ ] Implement (or add a minimal dependency for) AWS Signature Version 4 signing in `worker/src/aws_sigv4.ts`:
+- [x] Implement AWS Signature Version 4 signing in `worker/src/aws_sigv4.ts`:
   - Inputs: method, URL, headers, body, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, service name (`bedrock`)
   - Output: `Authorization` header value + `x-amz-date` header
-  - Use Web Crypto API (`crypto.subtle`) for HMAC-SHA256 — available in Deno without any import
-- [ ] Unit-test signing with a known canonical request fixture (`worker/src/aws_sigv4_test.ts`)
+  - Uses Web Crypto API (`crypto.subtle`) for HMAC-SHA256 — available in Deno without any import
+- [x] Unit-test signing with known canonical request fixtures (`worker/src/aws_sigv4_test.ts`)
 
 ### 13.3 Factory function update (`worker/src/llm.ts`)
 
-- [ ] Update `createLLMProvider()` to handle `provider === 'bedrock'`:
-  ```typescript
-  } else if (provider === 'bedrock') {
-    const accessKeyId = Deno.env.get('AWS_ACCESS_KEY_ID') ?? '';
-    const secretKey   = Deno.env.get('AWS_SECRET_ACCESS_KEY') ?? '';
-    const region      = Deno.env.get('AWS_REGION') ?? 'us-east-1';
-    return new BedrockProvider(accessKeyId, secretKey, region, model);
-  }
-  ```
-- [ ] Update error message: `'Use "openai", "anthropic", or "bedrock".'`
+- [x] Updated `createLLMProvider()` to handle `provider === 'bedrock'`:
+  - Accepts optional `bedrockCredentials` object `{ accessKeyId, secretAccessKey, region }`
+  - Returns a `BedrockProvider` instance
+- [x] Updated error message: `'Use "openai", "anthropic", or "bedrock".'`
 
 ### 13.4 Environment variable wiring (`worker/src/main.ts`)
 
-- [ ] Update worker startup: when `LLM_PROVIDER=bedrock`, read `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` instead of `LLM_API_KEY`
-- [ ] Fail fast with a clear error at startup if `LLM_PROVIDER=bedrock` and required AWS vars are missing
-- [ ] Update `.env.example` to document the three Bedrock env vars (with empty defaults)
+- [x] Updated worker startup: when `LLM_PROVIDER=bedrock`, reads `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` instead of `LLM_API_KEY`
+- [x] Fails fast with a clear error at startup if `LLM_PROVIDER=bedrock` and required AWS vars are missing
+- [x] Updated `.env.example` to document the three Bedrock env vars (with empty defaults)
 
 ### 13.5 Fly.io secrets update
 
-- [ ] Document (in `worker/README.md` or inline in `fly.toml` comments) the secrets to set for Bedrock:
+- [x] Documented in `worker/.env.example` (Bedrock env vars with descriptions):
   ```
   fly secrets set LLM_PROVIDER=bedrock
   fly secrets set AWS_ACCESS_KEY_ID=...
@@ -556,16 +550,14 @@ Directory: `frontend/`
 
 ### 13.6 Tests
 
-- [ ] Add `worker/src/llm_bedrock_test.ts` (or extend `llm_test.ts`):
-  - Unit-test `BedrockProvider.summarize()` with a mocked `fetch` (stub Converse API response)
-  - Unit-test `BedrockProvider.researchTopic()` with a mocked `fetch`
-  - Test `createLLMProvider('bedrock', ...)` returns a `BedrockProvider` instance
-  - Test startup error when AWS vars are missing
-- [ ] Run full test suite: `deno test --allow-all worker/` — all tests pass
+- [x] `worker/src/aws_sigv4_test.ts` — 7 tests for SigV4 signing (Authorization header structure, x-amz-date format, credential scope, determinism, different bodies produce different signatures, sorted signed headers, query params)
+- [x] `worker/src/llm_bedrock_test.ts` — 19 tests for `BedrockProvider` (URL construction, SigV4 headers, request body format, response parsing, cost calculation, retry logic, error handling)
+- [x] `worker/src/llm_test.ts` extended — 12 additional tests for Bedrock within the existing llm_test
+- [x] Run full test suite: `deno test --allow-all` — all 109 tests pass
 
 ### 13.7 `IMPLEMENTATION_PLAN.md` open items update
 
-- [ ] Update open item #1 below: `LLM_PROVIDER` now accepts `openai` | `anthropic` | `bedrock`
+- [x] Updated open item #1 below: `LLM_PROVIDER` now accepts `openai` | `anthropic` | `bedrock`
 
 ---
 
