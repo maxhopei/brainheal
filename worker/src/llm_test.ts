@@ -1,5 +1,5 @@
 /**
- * worker/llm_test.ts — Tests for the LLM abstraction layer.
+ * worker/src/llm_test.ts — Tests for the LLM abstraction layer.
  *
  * Tests validation and parsing logic without making real API calls.
  */

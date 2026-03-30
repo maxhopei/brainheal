@@ -1,5 +1,5 @@
 /**
- * worker/fetcher.ts — Article fetching and content extraction.
+ * worker/src/fetcher.ts — Article fetching and content extraction.
  *
  * Fetches web articles and extracts readable content using Readability + linkedom.
  * For free-text topics, delegates to the LLM research step.

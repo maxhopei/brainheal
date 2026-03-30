@@ -1,5 +1,5 @@
 /**
- * worker/processor.ts — Core processing logic.
+ * worker/src/processor.ts — Core processing logic.
  *
  * Claims pending queue items and processes them:
  * 1. Fetch/extract article content (URL) or research topic (text)

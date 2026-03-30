@@ -1,5 +1,5 @@
 /**
- * worker/llm.ts — LLM abstraction layer.
+ * worker/src/llm.ts — LLM abstraction layer.
  *
  * Provides a unified interface for OpenAI and Anthropic providers.
  * The provider is selected at runtime via the LLM_PROVIDER environment variable.

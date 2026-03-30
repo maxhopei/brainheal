@@ -6,24 +6,28 @@ Guidance for agentic coding assistants working in this repository.
 
 ## Project Status
 
-This project is in the **specification phase**. No source code exists yet.
+Implementation is complete (Phases 0.1–11). See `IMPLEMENTATION_PLAN.md` for full status.
 
 ### Specification Documents
 
-The monolithic `spec.md` has been split into focused files under `specs/`. See [`specs/README.md`](specs/README.md) for the full index.
-
-Additional context: `spec-draft.md` (earlier draft), `CLAUDE.md` (Claude-specific guidance).
+All specs live under `specs/`. See [`specs/README.md`](specs/README.md) for the full index.
 
 ---
 
-## Repository Layout (Planned)
+## Repository Layout
 
 ```
 brainheal/
 ├── deno.json                   # workspace root — shared deps + root tasks
 ├── deno.lock
+├── compose.yaml                # Docker Compose: worker + frontend
+├── README.md
 ├── packages/
 │   └── shared/                 # @brainheal/shared — types, constants, utilities
+│       ├── mod.ts              # package entry point (re-exports from src/)
+│       ├── src/
+│       │   ├── types.ts
+│       │   └── types_test.ts
 │       └── deno.json
 ├── frontend/                   # @brainheal/frontend — React + Vite PWA (Deno runtime)
 │   ├── src/
@@ -31,24 +35,47 @@ brainheal/
 │   │   ├── hooks/
 │   │   ├── pages/
 │   │   ├── lib/                # Supabase client, helpers
-│   │   └── api/                # Hono API server (dev proxy target)
+│   │   └── types/
 │   ├── public/
 │   ├── index.html
 │   ├── vite.config.ts
+│   ├── Dockerfile              # multi-stage: Deno build → nginx serve
+│   ├── nginx.conf
 │   └── deno.json
 ├── supabase/
 │   ├── functions/              # Edge Functions — each is a workspace member
 │   │   ├── ingest/             # @brainheal/fn-ingest
+│   │   │   ├── index.ts        # thin shim: imports app from src/, calls Deno.serve
+│   │   │   └── src/
+│   │   │       ├── index.ts    # Hono app + all route logic
+│   │   │       └── index_test.ts
 │   │   └── stripe-webhook/     # @brainheal/fn-stripe-webhook
+│   │       ├── index.ts        # thin shim
+│   │       └── src/
+│   │           └── index.ts    # Hono app + all route logic
 │   └── migrations/             # SQL migration files
 ├── worker/                     # @brainheal/worker — Fly.io processing worker
-│   ├── main.ts
-│   ├── processor.ts
-│   ├── llm.ts
+│   ├── src/
+│   │   ├── main.ts
+│   │   ├── processor.ts
+│   │   ├── llm.ts
+│   │   ├── fetcher.ts
+│   │   ├── budget.ts
+│   │   ├── budget_test.ts
+│   │   ├── fetcher_test.ts
+│   │   └── llm_test.ts
+│   ├── Dockerfile
+│   ├── fly.toml
 │   └── deno.json
-└── extension/                  # @brainheal/extension — Chrome MV3 (Phase 2)
-    └── deno.json
+└── extension/                  # @brainheal/extension — Chrome MV3 (Phase 2, not yet implemented)
 ```
+
+### `src/` Convention
+
+- All TypeScript source lives in a `src/` subdirectory within each workspace.
+- **Edge Functions**: Supabase requires `index.ts` at the function root. The root `index.ts` is a thin shim that imports the Hono `app` from `src/index.ts` and calls `Deno.serve(app.fetch)`. All logic lives in `src/`.
+- **Frontend**: Already follows `src/` layout (not changed).
+- **packages/shared**: `mod.ts` at root re-exports from `src/types.ts`.
 
 ---
 
@@ -56,7 +83,7 @@ brainheal/
 
 **Runtime:** Deno 2.7 everywhere — no Node.js, no npm. HTTP framework: Hono (all members).
 
-### All workspace members (run from repo root)
+### Root tasks (run from repo root)
 
 ```bash
 # Install / sync dependencies
@@ -69,13 +96,13 @@ deno test --allow-all
 deno test --allow-all worker/
 
 # Run a single test file
-deno test --allow-all worker/processor.test.ts
+deno test --allow-all worker/src/budget_test.ts
 
 # Run tests matching a name pattern
-deno test --filter "snooze_feed_item"
+deno test --filter "checkDailyBudget"
 
 # Type-check all members
-deno check
+deno check **/*.ts
 
 # Lint everything
 deno lint
@@ -84,35 +111,47 @@ deno lint
 deno fmt
 ```
 
-### Frontend (React + Vite, Deno runtime)
+### Full stack lifecycle
 
 ```bash
-deno task --cwd=frontend dev      # Vite dev server (port 3000) + Hono API (port 8000)
-deno task --cwd=frontend build    # Production build (output → frontend/dist/)
-deno task --cwd=frontend preview  # Preview production build
+deno task start            # supabase:start + docker:start (all services)
+deno task stop             # docker:stop + supabase:stop
+
+deno task docker:start     # docker compose up -d --build
+deno task docker:stop      # docker compose down
+deno task docker:build     # docker compose build (no start)
+deno task docker:logs      # tail Docker Compose logs
+
+deno task supabase:start   # supabase start
+deno task supabase:stop    # supabase stop
+deno task supabase:status  # supabase status (shows URLs + keys)
+deno task supabase:migrate # supabase db push (apply migrations)
 ```
 
-### Worker (Fly.io)
+### Edge Functions (local dev)
 
 ```bash
+deno task fn:ingest          # supabase functions serve ingest
+deno task fn:stripe-webhook  # supabase functions serve stripe-webhook
+```
+
+### Individual services
+
+```bash
+deno task --cwd=frontend dev      # Vite dev server (port 3000)
+deno task --cwd=frontend build    # Production build → frontend/dist/
+deno task --cwd=frontend preview  # Preview production build
+
 deno task --cwd=worker dev    # Run worker locally with --watch
 deno task --cwd=worker start  # Run worker (production mode)
 ```
 
-### Supabase
+### Supabase CLI (direct)
 
 ```bash
-# Start local Supabase stack
-supabase start
-
-# Apply migrations
-supabase db push
-
-# Run an Edge Function locally
-supabase functions serve ingest --env-file .env.local
-
 # Deploy an Edge Function
 supabase functions deploy ingest
+supabase functions deploy stripe-webhook
 ```
 
 ---
@@ -245,8 +284,8 @@ RLS must be enabled on every `public` table. Never disable RLS to work around a 
 
 ## Security Rules
 
-- **Never commit secrets** — use `.env.local` (gitignored) for local secrets
-- The `service_role` key must only appear in the Fly.io worker environment, never in frontend code
+- **Never commit secrets** — use `.env` (gitignored) for local secrets; `.env.example` documents the required variables
+- The `service_role` key must only appear in the worker and Edge Function environments, never in frontend code
 - The `anon` key is safe to embed in frontend (combined with RLS)
 - Sanitize all user-supplied URLs and text in Edge Functions before processing
 - Validate JWT in every Edge Function via `supabase.auth.getUser()` (SDK does this automatically when using `createClient` with the request's Authorization header)

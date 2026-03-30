@@ -29,7 +29,19 @@
     "check": "deno check **/*.ts",
     "lint": "deno lint",
     "fmt": "deno fmt",
-    "test": "deno test --allow-all"
+    "test": "deno test --allow-all",
+    "start": "deno task supabase:start && deno task docker:start",
+    "stop": "deno task docker:stop && deno task supabase:stop",
+    "docker:start": "docker compose up -d --build",
+    "docker:stop": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:build": "docker compose build",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:status": "supabase status",
+    "supabase:migrate": "supabase db push",
+    "fn:ingest": "supabase functions serve ingest --env-file supabase/functions/ingest/.env",
+    "fn:stripe-webhook": "supabase functions serve stripe-webhook --env-file supabase/functions/stripe-webhook/.env"
   },
   "lint": {
     "rules": {

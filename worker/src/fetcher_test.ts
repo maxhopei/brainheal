@@ -1,5 +1,5 @@
 /**
- * worker/fetcher_test.ts — Tests for article fetching and content extraction.
+ * worker/src/fetcher_test.ts — Tests for article fetching and content extraction.
  */
 
 import { assertEquals, assertThrows } from '@std/assert';

@@ -1,5 +1,5 @@
 /**
- * worker/budget.ts — Daily LLM cost budget enforcement.
+ * worker/src/budget.ts — Daily LLM cost budget enforcement.
  *
  * Computes per-user daily limits based on their billing tier and
  * their spending this month. The worker calls checkDailyBudget()

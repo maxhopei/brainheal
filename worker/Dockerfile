@@ -2,24 +2,24 @@ FROM denoland/deno:2.2.2
 
 WORKDIR /app
 
-# Cache dependencies first (better layer caching)
-COPY worker/deno.json ./worker/
-COPY packages/shared/ ./packages/shared/
+# Copy all workspace member deno.json files for Deno workspace resolution
 COPY deno.json ./
+COPY packages/shared/deno.json ./packages/shared/
+COPY worker/deno.json ./worker/
+COPY supabase/functions/ingest/deno.json ./supabase/functions/ingest/
+COPY supabase/functions/stripe-webhook/deno.json ./supabase/functions/stripe-webhook/
+COPY frontend/deno.json ./frontend/
 
-# Copy worker source files
-COPY worker/main.ts ./worker/
-COPY worker/processor.ts ./worker/
-COPY worker/llm.ts ./worker/
-COPY worker/fetcher.ts ./worker/
-COPY worker/budget.ts ./worker/
+# Copy source files
+COPY packages/shared/ ./packages/shared/
+COPY worker/src/ ./worker/src/
 
 # Cache all dependencies
-RUN deno cache ./worker/main.ts
+RUN deno cache ./worker/src/main.ts
 
 # Run as non-root
 USER deno
 
 WORKDIR /app/worker
 
-CMD ["deno", "run", "--allow-all", "main.ts"]
+CMD ["deno", "run", "--allow-all", "src/main.ts"]

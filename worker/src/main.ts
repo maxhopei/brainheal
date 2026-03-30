@@ -1,5 +1,5 @@
 /**
- * worker/main.ts — Entry point for the BrainHeal processing worker.
+ * worker/src/main.ts — Entry point for the BrainHeal processing worker.
  *
  * Starts:
  * 1. The poll loop — periodically claims and processes queue items.
