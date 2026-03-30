@@ -5,7 +5,7 @@
 
 ---
 
-## Implementation Status — Updated 2026-03-29
+## Implementation Status — Updated 2026-03-30
 
 **Tests passing:** 71/71 (packages/shared: 24, ingest Edge Function: 24, worker: 23)
 
@@ -22,7 +22,7 @@
 - `react-swipeable` v7 uses `useSwipeable` hook with `preventScrollOnSwipe: true` for card swipe gestures
 - `AuthGuard` uses `Outlet` pattern (layout route) — use `<Route element={<AuthGuard />}>` with child routes nested inside; `AppShell` adds BottomNav wrapper
 
-**Next up:** Phase 12 (PWA polish + production deployment) — icons, service worker configuration, deploy to Netlify/Supabase/Fly.io.
+**Next up:** Phase 12 (PWA polish + production deployment) and Phase 13 (AWS Bedrock LLM provider) — these are independent and can proceed in parallel.
 
 ---
 
@@ -491,11 +491,89 @@ Directory: `frontend/`
 
 ---
 
+---
+
+## Phase 13 — AWS Bedrock LLM Provider
+
+**Goal**: The worker supports `LLM_PROVIDER=bedrock` as a third provider option alongside the existing `openai` and `anthropic` providers. Uses the Bedrock Converse API (model-agnostic) with IAM key auth. Any Bedrock-hosted model can be selected via `LLM_MODEL`.
+
+### 13.1 `BedrockProvider` class (`worker/src/llm.ts`)
+
+- [ ] Add `BedrockProvider` class implementing `LLMProvider`
+- [ ] Constructor: `(accessKeyId: string, secretAccessKey: string, region: string, model?: string)`
+  - Default model: `anthropic.claude-3-5-haiku-20241022-v1:0`
+  - Default region: `us-east-1`
+- [ ] Implement `callBedrock(systemPrompt: string, userMessage: string): Promise<{ content: string; inputTokens: number; outputTokens: number }>`:
+  - Use the [Bedrock Converse API](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference-call.html): `POST https://bedrock-runtime.<region>.amazonaws.com/model/<modelId>/converse`
+  - Sign requests with AWS Signature Version 4 (SigV4) — implement or import a minimal SigV4 signer (no AWS SDK; use raw `fetch`)
+  - Map `system` prompt and `user` message to the Converse API `messages` + `system` fields
+  - Parse response: `output.message.content[].text` for content; `usage.inputTokens` / `usage.outputTokens`
+- [ ] Implement `summarize(content: string): Promise<LLMSummarizeResult>`:
+  - Reuse `SYSTEM_PROMPT` and `STRICT_RETRY_SUFFIX` from existing providers
+  - Apply same retry-on-malformed-JSON pattern as `OpenAIProvider` / `AnthropicProvider`
+  - Cost calculation: use Bedrock on-demand per-token rates for the active model (store rates as a lookup map keyed by model ID; fall back to `0` if model unknown and log a warning)
+- [ ] Implement `researchTopic(topic: string): Promise<string>`:
+  - Reuse `RESEARCH_SYSTEM_PROMPT`
+  - Single Converse API call; return text content
+
+### 13.2 SigV4 request signing
+
+- [ ] Implement (or add a minimal dependency for) AWS Signature Version 4 signing in `worker/src/aws_sigv4.ts`:
+  - Inputs: method, URL, headers, body, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, service name (`bedrock`)
+  - Output: `Authorization` header value + `x-amz-date` header
+  - Use Web Crypto API (`crypto.subtle`) for HMAC-SHA256 — available in Deno without any import
+- [ ] Unit-test signing with a known canonical request fixture (`worker/src/aws_sigv4_test.ts`)
+
+### 13.3 Factory function update (`worker/src/llm.ts`)
+
+- [ ] Update `createLLMProvider()` to handle `provider === 'bedrock'`:
+  ```typescript
+  } else if (provider === 'bedrock') {
+    const accessKeyId = Deno.env.get('AWS_ACCESS_KEY_ID') ?? '';
+    const secretKey   = Deno.env.get('AWS_SECRET_ACCESS_KEY') ?? '';
+    const region      = Deno.env.get('AWS_REGION') ?? 'us-east-1';
+    return new BedrockProvider(accessKeyId, secretKey, region, model);
+  }
+  ```
+- [ ] Update error message: `'Use "openai", "anthropic", or "bedrock".'`
+
+### 13.4 Environment variable wiring (`worker/src/main.ts`)
+
+- [ ] Update worker startup: when `LLM_PROVIDER=bedrock`, read `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` instead of `LLM_API_KEY`
+- [ ] Fail fast with a clear error at startup if `LLM_PROVIDER=bedrock` and required AWS vars are missing
+- [ ] Update `.env.example` to document the three Bedrock env vars (with empty defaults)
+
+### 13.5 Fly.io secrets update
+
+- [ ] Document (in `worker/README.md` or inline in `fly.toml` comments) the secrets to set for Bedrock:
+  ```
+  fly secrets set LLM_PROVIDER=bedrock
+  fly secrets set AWS_ACCESS_KEY_ID=...
+  fly secrets set AWS_SECRET_ACCESS_KEY=...
+  fly secrets set AWS_REGION=us-east-1
+  fly secrets set LLM_MODEL=anthropic.claude-3-5-haiku-20241022-v1:0   # optional
+  ```
+
+### 13.6 Tests
+
+- [ ] Add `worker/src/llm_bedrock_test.ts` (or extend `llm_test.ts`):
+  - Unit-test `BedrockProvider.summarize()` with a mocked `fetch` (stub Converse API response)
+  - Unit-test `BedrockProvider.researchTopic()` with a mocked `fetch`
+  - Test `createLLMProvider('bedrock', ...)` returns a `BedrockProvider` instance
+  - Test startup error when AWS vars are missing
+- [ ] Run full test suite: `deno test --allow-all worker/` — all tests pass
+
+### 13.7 `IMPLEMENTATION_PLAN.md` open items update
+
+- [ ] Update open item #1 below: `LLM_PROVIDER` now accepts `openai` | `anthropic` | `bedrock`
+
+---
+
 ## Open Items / Decisions Deferred to Implementation
 
 | # | Item | Notes |
 |---|---|---|
-| 1 | LLM model selection | Use env var `LLM_PROVIDER` (`openai`/`anthropic`) + `LLM_MODEL` for specific model |
+| 1 | LLM model selection | `LLM_PROVIDER` accepts `openai`, `anthropic`, or `bedrock`. `LLM_MODEL` overrides the default per provider. Bedrock default: `anthropic.claude-3-5-haiku-20241022-v1:0`. |
 | 2 | Free tier article limit | Set `FREE_MONTHLY_BUDGET_USD=1.00` in worker env initially; adjust after observing usage |
 | 3 | Paid tier pricing | Deferred to Phase 2 (Billing/Stripe) |
 | 4 | Worker poll interval | Start at 5s (`POLL_INTERVAL_MS=5000`) |
@@ -521,5 +599,6 @@ Directory: `frontend/`
 | 10 | Frontend: settings | No |
 | 11 | Navigation & app shell | Yes |
 | 12 | PWA polish + production deploy | Yes |
+| 13 | AWS Bedrock LLM provider | No (independent of frontend; can ship any time after Phase 4) |
 
 The **critical path** is: Phase 0 → 1 → 2 → 3 + 4 (parallel) → 5 → 6 + 11 (parallel) → 7 → 12.

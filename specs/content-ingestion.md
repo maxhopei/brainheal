@@ -187,3 +187,4 @@ daily_limit = remaining_budget / remaining_days_in_month
 - Costs are per-user, per-queue-item (`cost_records` table).
 - Budget accumulates within one billing period. Resets every month.
 - Admin can view aggregate cost metrics via Supabase Dashboard SQL queries.
+- **Bedrock on-demand pricing** is used when `LLM_PROVIDER=bedrock`. Token costs vary by model; the worker calculates cost using the same `cost_usd` field with Bedrock's published per-token rates for the active model.

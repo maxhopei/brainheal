@@ -25,7 +25,7 @@ graph TB
     end
 
     subgraph External["External Services"]
-        LLM["LLM API<br/>OpenAI / Anthropic"]
+        LLM["LLM API<br/>OpenAI / Anthropic / AWS Bedrock"]
         Pay["Stripe"]
     end
 
@@ -80,9 +80,25 @@ graph TB
 | Realtime          | Supabase Realtime                              | Push feed updates to clients.                                                         |
 | Processing worker | Deno 2.7 on Fly.io                             | Long-running. Docker container. Direct PG connection with `service_role` key.         |
 | Workspace         | Deno 2.7 workspaces (root `deno.json`)         | Single lockfile. JSR/npm specifiers only — no raw `https://` imports.                 |
-| LLM               | OpenAI or Anthropic API                        | Abstracted behind an interface. Cost/quality TBD.                                     |
+| LLM               | OpenAI, Anthropic, or AWS Bedrock      | Abstracted behind a common `LLMProvider` interface. Selected via `LLM_PROVIDER` env var (`openai` \| `anthropic` \| `bedrock`). Bedrock uses the Converse API with SigV4 auth; supports any Bedrock-hosted model. Default model for Bedrock: `anthropic.claude-3-5-haiku-20241022-v1:0`. |
 | Payments          | Stripe                                         | Subscription billing via Edge Function webhook.                                       |
 | Deployment        | Vercel (frontend) + Supabase + Fly.io (worker) |                                                                                       |
+
+### Worker environment variables
+
+The Fly.io worker is configured entirely through environment variables (stored as Fly.io secrets).
+
+| Variable               | Required                       | Description                                                                                     |
+| ---------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `LLM_PROVIDER`         | Yes                            | `openai` \| `anthropic` \| `bedrock`                                                            |
+| `LLM_MODEL`            | No                             | Override the default model for the selected provider. Defaults per provider listed below.       |
+| `OPENAI_API_KEY`       | When `LLM_PROVIDER=openai`     | OpenAI API key. Default model: `gpt-4o-mini`.                                                   |
+| `ANTHROPIC_API_KEY`    | When `LLM_PROVIDER=anthropic`  | Anthropic API key. Default model: `claude-3-5-haiku-20241022`.                                  |
+| `AWS_ACCESS_KEY_ID`    | When `LLM_PROVIDER=bedrock`    | AWS IAM access key with `bedrock:InvokeModel` permission.                                       |
+| `AWS_SECRET_ACCESS_KEY`| When `LLM_PROVIDER=bedrock`    | AWS IAM secret key.                                                                             |
+| `AWS_REGION`           | When `LLM_PROVIDER=bedrock`    | AWS region for Bedrock. Default: `us-east-1`.                                                   |
+| `SUPABASE_URL`         | Yes                            | Supabase project URL.                                                                           |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes                       | Supabase service role key (bypasses RLS).                                                       |
 
 ---
 
@@ -141,7 +157,7 @@ graph TB
     end
 
     subgraph "External"
-        LLMAPI["OpenAI / Anthropic API"]
+        LLMAPI["OpenAI / Anthropic / AWS Bedrock"]
         StripeAPI["Stripe API"]
     end
 
