@@ -1,0 +1,88 @@
+---
+description: Workspace folder structure, src/ layout convention, and README requirements for every workspace member
+alwaysApply: true
+---
+
+# Workspace Conventions
+
+## Folder structure
+
+```
+brainheal/
+├── deno.json                   # workspace root — shared deps + root tasks
+├── deno.lock
+├── compose.yaml                # Docker Compose: worker + frontend
+├── README.md
+├── packages/
+│   └── shared/                 # @brainheal/shared
+│       ├── mod.ts              # package entry point — re-exports from src/
+│       ├── src/
+│       │   └── types.ts
+│       └── deno.json
+├── frontend/                   # @brainheal/frontend
+│   ├── src/                    # all TS/TSX source here
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   ├── index.html
+│   ├── vite.config.ts
+│   └── deno.json
+├── supabase/
+│   ├── functions/
+│   │   ├── ingest/             # @brainheal/fn-ingest
+│   │   │   ├── index.ts        # thin shim only — see src/ convention below
+│   │   │   └── src/
+│   │   │       ├── index.ts    # Hono app + all logic
+│   │   │       └── index_test.ts
+│   │   └── stripe-webhook/     # @brainheal/fn-stripe-webhook
+│   │       ├── index.ts        # thin shim
+│   │       └── src/
+│   │           └── index.ts
+│   └── migrations/
+├── worker/                     # @brainheal/worker
+│   ├── src/
+│   │   ├── main.ts
+│   │   └── *.ts
+│   ├── Dockerfile
+│   └── deno.json
+└── extension/                  # Phase 2, not yet implemented
+```
+
+## TypeScript source in `src/`
+
+All TypeScript source files must live in a `src/` subdirectory inside each workspace. Non-TS files (`deno.json`, `Dockerfile`, `fly.toml`, config files) stay at the workspace root.
+
+**Edge Functions** are the one exception: Supabase requires `index.ts` at the function root. Keep it as a thin shim — all logic goes in `src/`:
+
+```typescript
+// supabase/functions/ingest/index.ts  ← thin shim, nothing else
+import { app } from './src/index.ts';
+Deno.serve(app.fetch);
+```
+
+```typescript
+// supabase/functions/ingest/src/index.ts  ← all route logic here
+export const app = new Hono();
+app.post('/', async (c) => { ... });
+app.get('/health', (c) => c.json({ status: 'ok' }));
+```
+
+**`packages/shared`**: `mod.ts` stays at root as the package entry point; all source goes in `src/`:
+
+```typescript
+// packages/shared/mod.ts
+export * from './src/types.ts';
+```
+
+**Frontend** already follows `src/` — do not move it.
+
+## README.md for every workspace
+
+Every workspace must have a `README.md` at its root with these sections:
+
+1. **One-sentence description** of what the service does.
+2. **Dependencies** — other services that must be running first (Docker Compose or `deno task supabase:start`).
+3. **Environment setup** — `cp .env.example .env` and which secrets need filling in.
+4. **How to run** — the command to start the service locally.
+5. **How to run tests** — if the workspace has tests.
+
+Keep READMEs short. Do not duplicate content from `specs/`.

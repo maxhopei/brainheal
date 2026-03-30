@@ -81,50 +81,14 @@ brainheal/
 
 ## Project Conventions
 
-Rules for agents and contributors. Every rule here must be followed when adding or modifying workspaces.
+Detailed rules live in `.cursor/rules/` and apply to all AI assistants (Cursor, OpenCode, etc.):
 
-### 1. TypeScript source in `src/`
-
-- All TypeScript source files must live in a `src/` subdirectory inside each workspace. Non-TS files (`deno.json`, `Dockerfile`, `fly.toml`, config files) stay at the workspace root.
-- **Edge Functions** are the one exception to the flat-root rule: Supabase requires `index.ts` at the function root. Keep it as a thin shim (`import { app } from './src/index.ts'; Deno.serve(app.fetch)`). All logic goes in `src/`.
-- **Frontend** already follows the `src/` layout — do not move it.
-- **`packages/shared`**: `mod.ts` stays at root (it is the package entry point); all source goes in `src/`.
-
-### 2. `.env.example` for every runnable workspace
-
-- Every workspace that can be **run** (i.e. has a `dev` or `start` task, or is deployed) must have a `.env.example` at its workspace root.
-- The file must be **ready to copy as-is to `.env`** for local development — meaning all values that have known local defaults (e.g. local Supabase URL and well-known dev keys) are pre-filled. Only genuine secrets that differ per developer (e.g. `LLM_API_KEY`, `STRIPE_WEBHOOK_SECRET`) may be left as commented-out placeholders.
-- Never commit `.env` files. They are gitignored. Only `.env.example` is committed.
-- The `service_role` key and other Supabase local dev keys are not secrets — they are the same for every developer's local stack and may appear in `.env.example`.
-
-### 3. `README.md` for every workspace
-
-- Every workspace must have a `README.md` at its workspace root.
-- Required sections:
-  1. One-sentence description of what the service does.
-  2. **Dependencies** — list any other services that must be running first (assume they run via Docker Compose or `deno task supabase:start`).
-  3. **Environment setup** — `cp .env.example .env` and any secrets that need filling in.
-  4. **How to run** — the command(s) to start the service locally.
-  5. **How to run tests** (if the workspace has tests).
-- Keep READMEs short. Do not duplicate information already in `specs/`.
-
-### 4. Docker Compose for runnable services
-
-- Any service that can run in a container must be declared in the root `compose.yaml`.
-- The `start` / `stop` root deno tasks must start/stop the full local stack in one command.
-- Supabase is managed via the Supabase CLI (`supabase start`), not Docker Compose. It is started by `deno task supabase:start`, which is chained into `deno task start`.
-- Docker build contexts must be the repo root (not the service subdirectory) so that shared files (`deno.json`, `packages/shared/`) are accessible.
-- Do not copy `deno.lock` into Docker images — the lockfile version may not match the Deno version in the image.
-
-### 5. Deno task naming
-
-- Root-level tasks must follow the `scope:action` format.
-- Established scopes:
-  - `docker:` — Docker Compose operations (`docker:start`, `docker:stop`, `docker:build`, `docker:logs`)
-  - `supabase:` — Supabase CLI operations (`supabase:start`, `supabase:stop`, `supabase:status`, `supabase:migrate`)
-  - `fn:` — Edge Function local serving (`fn:ingest`, `fn:stripe-webhook`)
-- Top-level convenience tasks (`start`, `stop`) are allowed when they compose multiple scoped tasks.
-- Workspace-local tasks (defined inside a member's `deno.json`) use simple names (`dev`, `start`, `build`, `preview`) and are invoked from the root as `deno task --cwd=<member> <task>`.
+| Rule file | Covers |
+|---|---|
+| `.cursor/rules/workspace-conventions.mdc` | Folder structure, `src/` layout, `README.md` requirements |
+| `.cursor/rules/env-example.mdc` | `.env.example` — what it must contain, local defaults |
+| `.cursor/rules/docker-compose.mdc` | `compose.yaml` setup, Dockerfile build context rules |
+| `.cursor/rules/deno-tasks.mdc` | Root task naming (`scope:action` format) |
 
 ---
 

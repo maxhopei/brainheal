@@ -1,0 +1,51 @@
+---
+description: .env.example requirements — every runnable workspace must have one, pre-filled for local dev
+alwaysApply: false
+---
+
+# `.env.example` Convention
+
+Every workspace that can be **run** (has a `dev` or `start` task, or is deployed) must have a `.env.example` at its workspace root.
+
+## Rules
+
+- The file must work as-is after `cp .env.example .env` for local development — no manual edits required except for genuine per-developer secrets.
+- All values with known local defaults (local Supabase URL, well-known dev keys) must be **pre-filled**.
+- Only values that genuinely differ per developer (e.g. `LLM_API_KEY`, `STRIPE_WEBHOOK_SECRET`) may be left as commented-out placeholders.
+- Never commit `.env` files — they are gitignored. Only `.env.example` is committed.
+- The local Supabase `service_role` key and `anon` key are **not secrets** — they are identical on every developer's machine and must appear pre-filled in `.env.example`.
+
+## Local Supabase defaults
+
+```env
+# Well-known local Supabase values (same for every developer)
+SUPABASE_URL=http://localhost:54321
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRFA0NiK7kyqh1i6_RjMJYFwUmHDMEZr0U5nOQPlJxc
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hj04zWl196z2-SBc0
+```
+
+## Template by workspace
+
+**`frontend/.env.example`**
+```env
+# Supabase — local dev (deno task supabase:start)
+VITE_SUPABASE_URL=http://localhost:54321
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRFA0NiK7kyqh1i6_RjMJYFwUmHDMEZr0U5nOQPlJxc
+```
+
+**`worker/.env.example`**
+```env
+# Supabase — local dev
+SUPABASE_URL=http://localhost:54321
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hj04zWl196z2-SBc0
+
+LLM_PROVIDER=openai
+# LLM_API_KEY=  # required — no default
+```
+
+**`supabase/functions/<name>/.env.example`**
+```env
+SUPABASE_URL=http://localhost:54321
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRFA0NiK7kyqh1i6_RjMJYFwUmHDMEZr0U5nOQPlJxc
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hj04zWl196z2-SBc0
+```

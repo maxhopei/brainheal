@@ -1,0 +1,69 @@
+---
+description: Deno task naming convention — scope:action format for root-level tasks
+alwaysApply: false
+---
+
+# Deno Task Naming
+
+Root-level tasks in `deno.json` must follow the `scope:action` format.
+
+## Established scopes
+
+| Scope | Purpose | Examples |
+|---|---|---|
+| `docker:` | Docker Compose operations | `docker:start`, `docker:stop`, `docker:build`, `docker:logs` |
+| `supabase:` | Supabase CLI operations | `supabase:start`, `supabase:stop`, `supabase:status`, `supabase:migrate` |
+| `fn:` | Edge Function local serving | `fn:ingest`, `fn:stripe-webhook` |
+
+## Convenience top-level tasks
+
+Top-level tasks without a scope are allowed when they compose multiple scoped tasks:
+
+```jsonc
+"start": "deno task supabase:start && deno task docker:start",
+"stop":  "deno task docker:stop && deno task supabase:stop",
+```
+
+## Workspace-local tasks
+
+Tasks defined inside a member's own `deno.json` use simple names (`dev`, `start`, `build`, `preview`) and are invoked from the root via:
+
+```bash
+deno task --cwd=frontend dev
+deno task --cwd=worker start
+```
+
+Do not mirror workspace-local tasks at the root with a scope prefix — use `--cwd` instead.
+
+## Current root tasks reference
+
+```jsonc
+// deno.json
+"tasks": {
+  // Convenience
+  "start":             "deno task supabase:start && deno task docker:start",
+  "stop":              "deno task docker:stop && deno task supabase:stop",
+
+  // Docker
+  "docker:start":      "docker compose up -d --build",
+  "docker:stop":       "docker compose down",
+  "docker:build":      "docker compose build",
+  "docker:logs":       "docker compose logs -f",
+
+  // Supabase
+  "supabase:start":    "supabase start",
+  "supabase:stop":     "supabase stop",
+  "supabase:status":   "supabase status",
+  "supabase:migrate":  "supabase db push",
+
+  // Edge Functions (local dev)
+  "fn:ingest":         "supabase functions serve ingest --env-file supabase/functions/ingest/.env",
+  "fn:stripe-webhook": "supabase functions serve stripe-webhook --env-file supabase/functions/stripe-webhook/.env",
+
+  // Code quality
+  "check": "deno check **/*.ts",
+  "lint":  "deno lint",
+  "fmt":   "deno fmt",
+  "test":  "deno test --allow-all"
+}
+```

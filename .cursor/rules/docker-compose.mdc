@@ -1,0 +1,72 @@
+---
+description: Docker Compose setup — runnable services must be in compose.yaml; Dockerfile build context rules
+alwaysApply: false
+---
+
+# Docker Compose Convention
+
+## compose.yaml
+
+Any service that can run in a container must be declared in the root `compose.yaml`. Currently: `worker` and `frontend`.
+
+```yaml
+# compose.yaml — repo root
+services:
+  worker:
+    build:
+      context: .                    # always repo root
+      dockerfile: worker/Dockerfile
+    env_file: worker/.env
+    ports:
+      - '8080:8080'
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .                    # always repo root
+      dockerfile: frontend/Dockerfile
+      args:
+        - VITE_SUPABASE_URL
+        - VITE_SUPABASE_ANON_KEY
+    env_file: frontend/.env
+    ports:
+      - '3000:80'
+    restart: unless-stopped
+```
+
+## Dockerfile rules
+
+- Build context must always be the **repo root** — not the service subdirectory. This is required so that `deno.json`, `packages/shared/`, and other workspace members are accessible during the build.
+- Copy all workspace member `deno.json` files into the image so Deno can resolve the workspace. Missing member configs cause `Could not find config file for workspace member` errors.
+- Do **not** copy `deno.lock` — the lockfile version may not match the Deno version in the image.
+
+```dockerfile
+# worker/Dockerfile
+FROM denoland/deno:2.2.2
+WORKDIR /app
+
+# Copy all workspace member deno.json files for workspace resolution
+COPY deno.json ./
+COPY packages/shared/deno.json ./packages/shared/
+COPY worker/deno.json ./worker/
+COPY supabase/functions/ingest/deno.json ./supabase/functions/ingest/
+COPY supabase/functions/stripe-webhook/deno.json ./supabase/functions/stripe-webhook/
+COPY frontend/deno.json ./frontend/
+
+COPY packages/shared/ ./packages/shared/
+COPY worker/src/ ./worker/src/
+
+RUN deno cache ./worker/src/main.ts
+USER deno
+WORKDIR /app/worker
+CMD ["deno", "run", "--allow-all", "src/main.ts"]
+```
+
+## Supabase is not in compose.yaml
+
+Supabase is managed by the Supabase CLI, not Docker Compose. Start it with `deno task supabase:start`. The `deno task start` convenience task chains both:
+
+```bash
+deno task start   # = supabase:start + docker:start
+deno task stop    # = docker:stop + supabase:stop
+```

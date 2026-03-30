@@ -1,9 +1,12 @@
 ---
-description: How to create, update, and organise Cursor rules in this repository
+description: How to create, update, and organise project rules in this repository
 alwaysApply: true
 ---
 
 # Rules for Rules
+
+These rules apply to every AI coding assistant working in this repository —
+Cursor, OpenCode, Claude, or any other agent — not just Cursor.
 
 ## Location and format
 
@@ -53,6 +56,16 @@ Prefer **Apply Intelligently** as the default. Only use `alwaysApply: true` for 
 - Reference canonical source files with `@path/to/file` rather than copying their content — this avoids stale duplication.
 - Reference spec files (e.g., `@specs/data-model.md`) when a rule enforces patterns described there.
 - Avoid documenting things the agent already knows (common npm/git commands, standard TypeScript syntax, etc.).
+
+## Applicability across tools
+
+These rule files are read by:
+- **Cursor** — loaded automatically from `.cursor/rules/`
+- **OpenCode** — loaded automatically from `.cursor/rules/` (same directory)
+- Any other agent configured to read this path
+
+When writing a rule, write it as a generic instruction to "the agent" or
+"the assistant", not to a specific tool.
 
 ## When to create a new rule
 
