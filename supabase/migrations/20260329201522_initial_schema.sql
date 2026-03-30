@@ -1,9 +1,6 @@
 -- Migration: Initial schema
 -- Creates all core tables for BrainHeal MVP.
 
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 -- ---------------------------------------------------------------------------
 -- profiles — extends auth.users 1:1 with app-specific data
 -- ---------------------------------------------------------------------------
@@ -23,7 +20,7 @@ COMMENT ON TABLE public.profiles IS 'App-specific user profile data. 1:1 with au
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS public.posts (
-  id            uuid        NOT NULL PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            uuid        NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id       uuid        NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   source_url    text,
   source_text   text,
@@ -41,7 +38,7 @@ COMMENT ON TABLE public.posts IS 'A processed post — one per ingested article 
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS public.cards (
-  id            uuid        NOT NULL PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            uuid        NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
   post_id       uuid        NOT NULL REFERENCES public.posts(id) ON DELETE CASCADE,
   position      integer     NOT NULL CHECK (position >= 1),
   content_type  text        NOT NULL CHECK (content_type IN ('text', 'image', 'key_points', 'quote')),
@@ -58,7 +55,7 @@ COMMENT ON TABLE public.cards IS '1-based ordered cards within a post.';
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS public.queue_items (
-  id            uuid        NOT NULL PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            uuid        NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id       uuid        NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   input_type    text        NOT NULL CHECK (input_type IN ('url', 'text')),
   input_value   text        NOT NULL,
@@ -77,7 +74,7 @@ COMMENT ON TABLE public.queue_items IS 'Processing queue. Worker uses FOR UPDATE
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS public.feed_items (
-  id                 uuid        NOT NULL PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                 uuid        NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id            uuid        NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   post_id            uuid        REFERENCES public.posts(id) ON DELETE SET NULL,
   queue_item_id      uuid        NOT NULL REFERENCES public.queue_items(id) ON DELETE CASCADE,
@@ -97,7 +94,7 @@ COMMENT ON TABLE public.feed_items IS 'Per-user feed state. position is a monoto
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS public.favorite_groups (
-  id         uuid        NOT NULL PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id         uuid        NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id    uuid        NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   name       text        NOT NULL,
   position   integer     NOT NULL DEFAULT 0,
@@ -112,7 +109,7 @@ COMMENT ON TABLE public.favorite_groups IS 'User-defined groups for organizing s
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS public.favorites (
-  id         uuid        NOT NULL PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id         uuid        NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id    uuid        NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   post_id    uuid        NOT NULL REFERENCES public.posts(id) ON DELETE CASCADE,
   group_id   uuid        NOT NULL REFERENCES public.favorite_groups(id) ON DELETE CASCADE,
@@ -127,7 +124,7 @@ COMMENT ON TABLE public.favorites IS 'A post saved by a user. A post can be in e
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS public.reactions (
-  id         uuid        NOT NULL PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id         uuid        NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id    uuid        NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   post_id    uuid        NOT NULL REFERENCES public.posts(id) ON DELETE CASCADE,
   type       text        NOT NULL CHECK (type IN ('like', 'meh')),
@@ -142,7 +139,7 @@ COMMENT ON TABLE public.reactions IS 'User reaction to a post. Mutually exclusiv
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS public.cost_records (
-  id             uuid        NOT NULL PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             uuid        NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id        uuid        NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   queue_item_id  uuid        NOT NULL REFERENCES public.queue_items(id) ON DELETE CASCADE,
   tokens_input   integer     NOT NULL DEFAULT 0,
