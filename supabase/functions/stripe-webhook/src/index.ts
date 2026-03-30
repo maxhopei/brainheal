@@ -14,7 +14,7 @@ import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { createClient } from '@supabase/supabase-js';
 
-export const app = new Hono();
+export const app = new Hono().basePath('/stripe-webhook');
 
 // ---------------------------------------------------------------------------
 // Stripe signature verification

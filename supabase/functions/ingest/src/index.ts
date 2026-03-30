@@ -19,7 +19,7 @@ import type { Context } from 'hono';
 import { createClient } from '@supabase/supabase-js';
 import type { IngestRequest, IngestResponse, ErrorResponse } from '@brainheal/shared';
 
-export const app = new Hono();
+export const app = new Hono().basePath('/ingest');
 
 // ---------------------------------------------------------------------------
 // Input validation helpers
