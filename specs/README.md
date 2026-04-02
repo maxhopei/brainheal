@@ -11,3 +11,5 @@
 | [api.md](api.md) | PostgREST reads, RPC atomic ops, simple writes, Realtime subscriptions, admin |
 | [social-features.md](social-features.md) | Favorites, reactions, recommendations, in-app sharing, external sharing |
 | [billing.md](billing.md) | Pricing tiers, Stripe integration, LLM cost budgets |
+| [card-qa.md](card-qa.md) | In-feed Q&A about cards — UX, Edge Function, billing, schema changes |
+| [read-next.md](read-next.md) | Select terms/links in cards to queue related content, inserted after current post |
