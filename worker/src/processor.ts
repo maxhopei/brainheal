@@ -53,7 +53,7 @@ export async function processNextItem(
   llm: LLMProvider,
 ): Promise<boolean> {
   // 1. Claim the next pending item using a Postgres RPC to ensure atomicity
-  const { data: claimedItem, error: claimError } = await supabase
+  const { data: claimedRows, error: claimError } = await supabase
     .rpc('claim_next_queue_item');
 
   if (claimError) {
@@ -61,11 +61,13 @@ export async function processNextItem(
     return false;
   }
 
-  if (!claimedItem) {
-    // Queue is empty
+  // SETOF returns an array; empty array means queue is empty.
+  // Normalise: PostgREST may return a plain object for single-row composite return types.
+  const claimedItem = Array.isArray(claimedRows) ? claimedRows[0] : claimedRows;
+
+  if (!claimedItem || !claimedItem.id) {
     return false;
   }
-
   const queueItemId: string = claimedItem.id;
   const userId: string = claimedItem.user_id;
   const inputType: 'url' | 'text' = claimedItem.input_type;
