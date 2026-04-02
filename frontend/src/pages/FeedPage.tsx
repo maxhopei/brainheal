@@ -74,7 +74,7 @@ export function FeedPage() {
   return (
     <div className={styles.container}>
       {items.map((item: FeedItem) => {
-        if (!item.post_id || !item.post) {
+        if (!item.post) {
           return (
             <div key={item.id} className={styles.postWrapper}>
               <SkeletonCard feedItem={item} />
