@@ -37,6 +37,8 @@ export type SigV4SignedHeaders = {
   Authorization: string;
   /** The x-amz-date header value */
   'x-amz-date': string;
+  /** SHA-256 hash of the request body; must be sent as a header so AWS can verify it */
+  'x-amz-content-sha256': string;
 };
 
 // ---------------------------------------------------------------------------
@@ -193,5 +195,6 @@ export async function signRequest(opts: SigV4Options): Promise<SigV4SignedHeader
   return {
     Authorization: authorization,
     'x-amz-date': dateTime,
+    'x-amz-content-sha256': payloadHash,
   };
 }

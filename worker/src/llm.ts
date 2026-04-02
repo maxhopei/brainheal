@@ -366,12 +366,22 @@ export class AnthropicProvider implements LLMProvider {
  * Prices are per 1,000 tokens — divided here to get per-token rates.
  */
 const BEDROCK_COSTS: Record<string, { input: number; output: number }> = {
-  // Anthropic Claude 3.5 Haiku
+  // Anthropic Claude 3.5 Haiku — cross-region inference profile (us.*)
+  'us.anthropic.claude-3-5-haiku-20241022-v1:0': {
+    input: 0.0008 / 1_000,
+    output: 0.004 / 1_000,
+  },
+  // Anthropic Claude 3.5 Haiku — bare model ID (legacy, kept for compatibility)
   'anthropic.claude-3-5-haiku-20241022-v1:0': {
     input: 0.0008 / 1_000,
     output: 0.004 / 1_000,
   },
-  // Anthropic Claude 3.5 Sonnet
+  // Anthropic Claude 3.5 Sonnet — cross-region inference profile
+  'us.anthropic.claude-3-5-sonnet-20241022-v2:0': {
+    input: 0.003 / 1_000,
+    output: 0.015 / 1_000,
+  },
+  // Anthropic Claude 3.5 Sonnet — bare model ID (legacy)
   'anthropic.claude-3-5-sonnet-20241022-v2:0': {
     input: 0.003 / 1_000,
     output: 0.015 / 1_000,
@@ -413,7 +423,7 @@ export class BedrockProvider implements LLMProvider {
     accessKeyId: string,
     secretAccessKey: string,
     region = 'us-east-1',
-    model = 'anthropic.claude-3-5-haiku-20241022-v1:0',
+    model = 'us.anthropic.claude-3-5-haiku-20241022-v1:0',
   ) {
     this.accessKeyId = accessKeyId;
     this.secretAccessKey = secretAccessKey;
@@ -425,7 +435,7 @@ export class BedrockProvider implements LLMProvider {
     systemPrompt: string,
     userMessage: string,
   ): Promise<{ content: string; inputTokens: number; outputTokens: number }> {
-    const url = `https://bedrock-runtime.${this.region}.amazonaws.com/model/${encodeURIComponent(this.model)}/converse`;
+    const url = `https://bedrock-runtime.${this.region}.amazonaws.com/model/${this.model}/converse`;
 
     const requestBody = JSON.stringify({
       system: [{ text: systemPrompt }],

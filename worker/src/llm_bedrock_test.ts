@@ -268,7 +268,7 @@ Deno.test('BedrockProvider.summarize - parses response and returns LLMSummarizeR
     assertEquals(result.usage.tokens_output, 250);
     assertEquals(typeof result.usage.cost_usd, 'number');
     assertEquals(result.usage.cost_usd > 0, true);
-    assertEquals(result.usage.model_used, 'anthropic.claude-3-5-haiku-20241022-v1:0');
+    assertEquals(result.usage.model_used, 'us.anthropic.claude-3-5-haiku-20241022-v1:0');
   } finally {
     restore();
   }
