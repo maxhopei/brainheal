@@ -3684,8 +3684,12 @@
       "supabase/functions/ingest": {
         "dependencies": [
           "jsr:@std/assert@1",
+          "npm:@anthropic-ai/sdk@0.39",
+          "npm:@mozilla/readability@0.5",
           "npm:@supabase/supabase-js@2",
-          "npm:hono@4"
+          "npm:hono@4",
+          "npm:linkedom@0.18",
+          "npm:openai@4"
         ]
       },
       "supabase/functions/stripe-webhook": {

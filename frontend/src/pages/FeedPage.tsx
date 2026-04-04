@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { type useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useFeed } from '@/hooks/useFeed';

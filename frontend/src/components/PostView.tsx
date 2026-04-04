@@ -2,8 +2,8 @@ import { useState, useCallback } from 'react';
 import { useSwipeable } from 'react-swipeable';
 import type { FeedItem, Card } from '@brainheal/shared';
 import { supabase } from '@/lib/supabase';
-import { CardView } from './CardView';
-import { SaveButton } from './SaveButton';
+import { CardView } from './CardView.tsx';
+import { SaveButton } from './SaveButton.tsx';
 import styles from './PostView.module.css';
 
 type PostViewProps = {

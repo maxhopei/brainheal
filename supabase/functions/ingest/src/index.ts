@@ -5,21 +5,66 @@
  * Body: { type: 'url' | 'text', value: string }
  * Returns: 202 { queue_item_id, feed_item_id } or 4xx { error: string }
  *
+ * Supports two modes (controlled by INGESTION_MODE environment variable):
+ * - "deferred" (default): Queue item only, worker processes asynchronously
+ * - "immediate": Queue item + respond immediately + process in background
+ *
  * This function:
  * 1. Validates the JWT (via supabase.auth.getUser())
  * 2. Validates the request body
- * 3. Inserts a queue_item (status='pending')
+ * 3. Inserts a queue_item (status='pending' or 'processing' depending on mode)
  * 4. Computes the next feed position
  * 5. Inserts a feed_item (post_id=null, state='unread')
  * 6. Returns { queue_item_id, feed_item_id }
+ * 7. (Immediate mode only) Processes the item in the background
  */
 
 import { Hono } from 'hono';
 import type { Context } from 'hono';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { IngestRequest, IngestResponse, ErrorResponse } from '@brainheal/shared';
+import { createLLMProvider, type LLMProvider } from './llm.ts';
+import { processItem } from './processor.ts';
+import { checkDailyBudget } from './budget.ts';
 
 export const app = new Hono().basePath('/ingest');
+
+// ---------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------
+
+const INGESTION_MODE = Deno.env.get('INGESTION_MODE') ?? 'deferred';
+
+// LLM configuration (only needed for immediate mode)
+let llmProvider: LLMProvider | null = null;
+
+function initLLMProvider(): LLMProvider {
+  if (llmProvider) return llmProvider;
+
+  const provider = Deno.env.get('LLM_PROVIDER');
+  const model = Deno.env.get('LLM_MODEL');
+
+  if (!provider) {
+    throw new Error('LLM_PROVIDER environment variable is required for immediate mode');
+  }
+
+  if (provider === 'bedrock') {
+    const accessKeyId = Deno.env.get('AWS_ACCESS_KEY_ID');
+    const secretAccessKey = Deno.env.get('AWS_SECRET_ACCESS_KEY');
+    if (!accessKeyId || !secretAccessKey) {
+      throw new Error('AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are required for Bedrock provider');
+    }
+  } else {
+    const apiKey = Deno.env.get('LLM_API_KEY');
+    if (!apiKey) {
+      throw new Error('LLM_API_KEY environment variable is required for immediate mode');
+    }
+  }
+
+  const apiKey = Deno.env.get('LLM_API_KEY') ?? '';
+  llmProvider = createLLMProvider(provider, apiKey, model);
+  return llmProvider;
+}
 
 // ---------------------------------------------------------------------------
 // Input validation helpers
@@ -133,15 +178,17 @@ app.post('/', async (c: Context) => {
   // ---- 3. Insert queue_item and feed_item (using service_role to bypass RLS) ----
   const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey);
 
-  // Insert queue_item
+  // Insert queue_item (status depends on mode)
+  const initialStatus = INGESTION_MODE === 'immediate' ? 'processing' : 'pending';
   const { data: queueItem, error: queueError } = await adminClient
     .from('queue_items')
     .insert({
       user_id: user.id,
       input_type: validated.type,
       input_value: validated.value,
-      status: 'pending',
+      status: initialStatus,
       retry_count: 0,
+      started_at: INGESTION_MODE === 'immediate' ? new Date().toISOString() : null,
     })
     .select('id')
     .single();
@@ -188,13 +235,140 @@ app.post('/', async (c: Context) => {
     return c.json({ error: 'Failed to create feed item' } satisfies ErrorResponse, 500);
   }
 
-  // ---- 4. Return 202 ----
+  // ---- 4. Return 202 (and optionally process in background) ----
   const response: IngestResponse = {
     queue_item_id: queueItem.id,
     feed_item_id: feedItem.id,
   };
+
+  if (INGESTION_MODE === 'immediate') {
+    // Process in background (non-blocking)
+    processInBackground(adminClient, user.id, queueItem.id, validated).catch((err) => {
+      console.error('Background processing failed:', err);
+    });
+  }
+
   return c.json(response, 202);
 });
 
+// ---------------------------------------------------------------------------
+// Background processing (immediate mode only)
+// ---------------------------------------------------------------------------
+
+async function processInBackground(
+  // deno-lint-ignore no-explicit-any
+  supabase: SupabaseClient<any>,
+  userId: string,
+  queueItemId: string,
+  validated: IngestRequest,
+): Promise<void> {
+  const ctx = {
+    queueItemId,
+    userId,
+    inputType: validated.type,
+    inputValue: validated.value,
+  };
+
+  // Check budget (non-blocking — log only)
+  try {
+    const budgetCheck = await checkDailyBudget(supabase, userId);
+    if (!budgetCheck.allowed) {
+      console.warn(JSON.stringify({
+        level: 'warn',
+        message: 'User over daily budget, but processing anyway (immediate mode)',
+        queue_item_id: queueItemId,
+        user_id: userId,
+        daily_limit: budgetCheck.dailyLimit,
+        today_spend: budgetCheck.todaySpend,
+      }));
+    }
+  } catch (err) {
+    console.warn(JSON.stringify({
+      level: 'warn',
+      message: 'Budget check failed (non-fatal in immediate mode)',
+      queue_item_id: queueItemId,
+      error: String(err),
+    }));
+  }
+
+  // Initialize LLM provider
+  let llm: LLMProvider;
+  try {
+    llm = initLLMProvider();
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    console.error(JSON.stringify({
+      level: 'error',
+      message: 'Failed to initialize LLM provider',
+      queue_item_id: queueItemId,
+      error: errorMessage,
+    }));
+
+    await markItemFailed(supabase, queueItemId, errorMessage);
+    return;
+  }
+
+  // Process the item
+  try {
+    await processItem(supabase, llm, ctx);
+
+    // Mark completed
+    await supabase
+      .from('queue_items')
+      .update({ status: 'completed', completed_at: new Date().toISOString() })
+      .eq('id', queueItemId);
+
+    console.log(JSON.stringify({
+      level: 'info',
+      message: 'Queue item completed',
+      queue_item_id: queueItemId,
+    }));
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    console.error(JSON.stringify({
+      level: 'error',
+      message: 'Processing failed',
+      queue_item_id: queueItemId,
+      error: errorMessage,
+    }));
+
+    await markItemFailed(supabase, queueItemId, errorMessage);
+  }
+}
+
+async function markItemFailed(
+  // deno-lint-ignore no-explicit-any
+  supabase: SupabaseClient<any>,
+  queueItemId: string,
+  errorMessage: string,
+): Promise<void> {
+  // Mark queue item as failed
+  await supabase
+    .from('queue_items')
+    .update({
+      status: 'failed',
+      error_message: errorMessage,
+      completed_at: new Date().toISOString(),
+    })
+    .eq('id', queueItemId);
+
+  // Update any associated post to failed status
+  const { data: feedItem } = await supabase
+    .from('feed_items')
+    .select('post_id')
+    .eq('queue_item_id', queueItemId)
+    .maybeSingle();
+
+  if (feedItem?.post_id) {
+    await supabase
+      .from('posts')
+      .update({ status: 'failed', error_message: errorMessage })
+      .eq('id', feedItem.post_id);
+  }
+}
+
 // Health check
-app.get('/health', (c: Context) => c.json({ status: 'ok' }));
+app.get('/health', (c: Context) => c.json({
+  status: 'ok',
+  ingestion_mode: INGESTION_MODE,
+}));

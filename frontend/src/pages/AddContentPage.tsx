@@ -1,4 +1,4 @@
-import { useState, FormEvent, useCallback } from 'react';
+import { useState, type FormEvent, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import styles from './AddContentPage.module.css';

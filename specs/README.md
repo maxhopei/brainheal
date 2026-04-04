@@ -6,6 +6,7 @@
 | [architecture.md](architecture.md) | System diagram, component mapping, tech stack, API layers, deployment, NFRs |
 | [data-model.md](data-model.md) | ERD, table schemas, triggers, key design decisions, RLS policies |
 | [content-ingestion.md](content-ingestion.md) | Input channels, ingestion flow, card generation, error handling, cost management |
+| [ingestion-modes.md](ingestion-modes.md) | Immediate vs. deferred processing modes, architecture, trade-offs, configuration |
 | [feed.md](feed.md) | Posts & cards, feed behaviour, gestures, realtime updates, UX screens & navigation |
 | [auth.md](auth.md) | Auth flow, session management, profile, Edge Function JWT validation |
 | [api.md](api.md) | PostgREST reads, RPC atomic ops, simple writes, Realtime subscriptions, admin |
