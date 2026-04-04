@@ -4,7 +4,7 @@
  */
 
 import { assertEquals, assertRejects } from '@std/assert';
-import { checkDailyBudget } from '@brainheal/shared';
+import { checkDailyBudget } from './budget.ts';
 
 // ---------------------------------------------------------------------------
 // Mock Supabase client builder

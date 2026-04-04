@@ -8,5 +8,8 @@
     "@anthropic-ai/sdk": "npm:@anthropic-ai/sdk@^0.39",
     "@mozilla/readability": "npm:@mozilla/readability@^0.5",
     "linkedom": "npm:linkedom@^0.18"
+  },
+  "tasks": {
+    "test": "deno test --allow-env"
   }
 }

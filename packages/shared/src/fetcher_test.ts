@@ -3,7 +3,7 @@
  */
 
 import { assertEquals, assertThrows } from '@std/assert';
-import { isValidUrl, extractArticleFromHtml } from '@brainheal/shared';
+import { isValidUrl, extractArticleFromHtml } from './fetcher.ts';
 
 Deno.test('isValidUrl returns true for http URL', () => {
   assertEquals(isValidUrl('http://example.com'), true);
