@@ -41,7 +41,9 @@
     "supabase:status": "supabase status",
     "supabase:migrate": "supabase db push",
     "fn:ingest": "supabase functions serve ingest --env-file supabase/functions/ingest/.env",
-    "fn:stripe-webhook": "supabase functions serve stripe-webhook --env-file supabase/functions/stripe-webhook/.env"
+    "fn:stripe-webhook": "supabase functions serve stripe-webhook --env-file supabase/functions/stripe-webhook/.env",
+    "deploy:fn:ingest": "supabase functions deploy ingest",
+    "deploy:fn:stripe-webhook": "supabase functions deploy stripe-webhook --no-verify-jwt"
   },
   "lint": {
     "rules": {
