@@ -111,7 +111,7 @@ Deno.test('BedrockProvider - instantiates with custom model and region', () => {
 // ---------------------------------------------------------------------------
 
 Deno.test('createLLMProvider - returns BedrockProvider for "bedrock"', () => {
-  const provider = createLLMProvider('bedrock', '', undefined, {
+  const provider = createLLMProvider('bedrock', '', 'test-model', {
     accessKeyId: 'AKID',
     secretAccessKey: 'SECRET',
     region: 'us-east-1',
@@ -122,7 +122,7 @@ Deno.test('createLLMProvider - returns BedrockProvider for "bedrock"', () => {
 });
 
 Deno.test('createLLMProvider - bedrock provider with custom model', () => {
-  const provider = createLLMProvider('bedrock', '', 'anthropic.claude-3-sonnet-20240229-v1:0', {
+  const provider = createLLMProvider('bedrock', '', 'test-model', {
     accessKeyId: 'AKID',
     secretAccessKey: 'SECRET',
     region: 'us-west-2',
@@ -133,7 +133,7 @@ Deno.test('createLLMProvider - bedrock provider with custom model', () => {
 Deno.test('createLLMProvider - throws for unknown provider (updated message)', () => {
   let thrown = false;
   try {
-    createLLMProvider('unknown-xyz', 'key');
+    createLLMProvider('unknown-xyz', 'key', 'test-model');
   } catch (err) {
     thrown = true;
     assertMatch(

@@ -13,21 +13,21 @@ import { OpenAIProvider, AnthropicProvider, BedrockProvider, createLLMProvider }
 // ---------------------------------------------------------------------------
 
 Deno.test('createLLMProvider returns OpenAIProvider for "openai"', () => {
-  const provider = createLLMProvider('openai', 'test-key');
+  const provider = createLLMProvider('openai', 'test-key', 'test-model');
   // Check it's an OpenAIProvider by checking methods exist
   assertEquals(typeof provider.summarize, 'function');
   assertEquals(typeof provider.researchTopic, 'function');
 });
 
 Deno.test('createLLMProvider returns AnthropicProvider for "anthropic"', () => {
-  const provider = createLLMProvider('anthropic', 'test-key');
+  const provider = createLLMProvider('anthropic', 'test-key', 'test-model');
   assertEquals(typeof provider.summarize, 'function');
   assertEquals(typeof provider.researchTopic, 'function');
 });
 
 Deno.test('createLLMProvider throws for unknown provider', () => {
   assertThrows(
-    () => createLLMProvider('unknown-provider', 'key'),
+    () => createLLMProvider('unknown-provider', 'key', 'test-model'),
     Error,
     'Unknown LLM provider',
   );
@@ -44,7 +44,7 @@ Deno.test('OpenAIProvider instantiates with custom model', () => {
 });
 
 Deno.test('AnthropicProvider instantiates with default model', () => {
-  const provider = new AnthropicProvider('test-key');
+  const provider = new AnthropicProvider('test-key', 'test-model');
   assertEquals(typeof provider.summarize, 'function');
 });
 
@@ -69,7 +69,7 @@ Deno.test('BedrockProvider instantiates with custom region', () => {
 });
 
 Deno.test('createLLMProvider returns BedrockProvider for "bedrock"', () => {
-  const provider = createLLMProvider('bedrock', '', undefined, {
+  const provider = createLLMProvider('bedrock', '', 'test-model', {
     accessKeyId: 'AKID',
     secretAccessKey: 'SECRET',
     region: 'us-east-1',
@@ -81,13 +81,13 @@ Deno.test('createLLMProvider returns BedrockProvider for "bedrock"', () => {
 
 Deno.test('createLLMProvider "bedrock" updated error message includes bedrock', () => {
   assertThrows(
-    () => createLLMProvider('totally-unknown', 'key'),
+    () => createLLMProvider('totally-unknown', 'key', 'test-model'),
     Error,
     '"totally-unknown"',
   );
   // Also verify the error message mentions all three valid providers
   try {
-    createLLMProvider('bad', 'key');
+    createLLMProvider('bad', 'key', 'test-model');
   } catch (e) {
     const msg = (e as Error).message;
     assertEquals(msg.includes('bedrock'), true);
@@ -219,6 +219,7 @@ Deno.test('BedrockProvider.summarize retries on malformed JSON', async () => {
 Deno.test('BedrockProvider.summarize throws after two failed attempts', async () => {
   const originalFetch = globalThis.fetch;
 
+  // @ts-ignore Ignore type mismatch for fetch mock
   globalThis.fetch = async (_input: RequestInfo | URL, _init?: RequestInit) => {
     return new Response(
       JSON.stringify({
@@ -246,6 +247,7 @@ Deno.test('BedrockProvider.summarize throws after two failed attempts', async ()
 Deno.test('BedrockProvider.summarize throws on HTTP error', async () => {
   const originalFetch = globalThis.fetch;
 
+  // @ts-ignore Ignore type mismatch for fetch mock
   globalThis.fetch = async (_input: RequestInfo | URL, _init?: RequestInit) => {
     return new Response('{"message":"AccessDeniedException"}', {
       status: 403,
@@ -268,6 +270,7 @@ Deno.test('BedrockProvider.summarize throws on HTTP error', async () => {
 Deno.test('BedrockProvider.researchTopic calls fetch and returns text content', async () => {
   const originalFetch = globalThis.fetch;
 
+  // @ts-ignore Ignore type mismatch for fetch mock
   globalThis.fetch = async (_input: RequestInfo | URL, _init?: RequestInit) => {
     return new Response(
       JSON.stringify({
@@ -294,6 +297,7 @@ Deno.test('BedrockProvider.researchTopic calls fetch and returns text content', 
 Deno.test('BedrockProvider cost is zero for unknown model (with no crash)', async () => {
   const originalFetch = globalThis.fetch;
 
+  // @ts-ignore Ignore type mismatch for fetch mock
   globalThis.fetch = async (_input: RequestInfo | URL, _init?: RequestInit) => {
     return new Response(
       JSON.stringify({
@@ -330,6 +334,7 @@ Deno.test('BedrockProvider uses correct Bedrock endpoint URL with encoded model 
   const originalFetch = globalThis.fetch;
   let capturedUrl = '';
 
+  // @ts-ignore Ignore type mismatch for fetch mock
   globalThis.fetch = async (input: RequestInfo | URL, _init?: RequestInit) => {
     capturedUrl = input.toString();
     return new Response(

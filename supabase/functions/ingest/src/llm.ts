@@ -5,7 +5,7 @@
  * Provides a unified interface for OpenAI, Anthropic, and AWS Bedrock providers.
  */
 
-import type { LLMCardOutput, LLMCardItem } from '@brainheal/shared';
+import type { LLMCardItem, LLMCardOutput } from '@brainheal/shared';
 import { signRequest } from './aws_sigv4.ts';
 
 // ---------------------------------------------------------------------------
@@ -40,7 +40,7 @@ Rules:
 - First card: the main idea / TL;DR (most important takeaway, most impactful sentence or two).
 - Subsequent cards: supporting details, examples, context, related ideas.
 - Each card: 80–150 words, concise, self-contained, and easy to read in 10–30 seconds.
-- Produce 2–7 cards depending on article length and complexity.
+- Produce 3–7 cards depending on article length and complexity.
 - If the article is very short (<200 words), produce 1–2 cards.
 - Use these card types:
   * "text" — formatted prose (primary type, rendered as Markdown)
@@ -48,11 +48,14 @@ Rules:
   * "quote" — a notable, memorable quote from the source
 - If the article contains a powerful quote, include one "quote" card.
 - If there are 3+ clear takeaways, include a "key_points" card.
-- If the article is long (>3000 words), you MAY produce multiple post objects (split by major topic sections). In that case return an array under the key "posts".
 - Do NOT include your own opinions.
 - Titles should be concise (max 10 words), descriptive, and engaging.
 
-Respond ONLY with valid JSON matching this exact schema (no markdown, no code fences):
+IMPORTANT:
+Respond ONLY with a single valid JSON object. No markdown, no code fences, no explanation.
+Start your response with "{" and end with "}". If you include markdown or code fences, I will scream at you.
+
+Example output:
 {
   "title": "string",
   "cards": [
@@ -76,9 +79,13 @@ function isStringArray(v: unknown): v is string[] {
 }
 
 function parseAndValidateLLMOutput(raw: string): LLMCardOutput {
+  const rawTrimmed = raw.trim()
+    .replace(/^```json/, '')
+    .replace(/```$/, '');
+
   let parsed: unknown;
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(rawTrimmed);
   } catch {
     throw new Error(`LLM returned invalid JSON: ${raw.slice(0, 200)}`);
   }
@@ -404,8 +411,8 @@ export class BedrockProvider implements LLMProvider {
   constructor(
     accessKeyId: string,
     secretAccessKey: string,
-    region = 'us-east-1',
-    model = 'us.anthropic.claude-3-5-haiku-20241022-v1:0',
+    region: string,
+    model: string,
   ) {
     this.accessKeyId = accessKeyId;
     this.secretAccessKey = secretAccessKey;
@@ -547,7 +554,7 @@ export class BedrockProvider implements LLMProvider {
 export function createLLMProvider(
   provider: string,
   apiKey: string,
-  model?: string,
+  model: string,
 ): LLMProvider {
   if (provider === 'openai') {
     return new OpenAIProvider(apiKey, model);

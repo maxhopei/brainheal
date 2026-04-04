@@ -49,7 +49,7 @@ function requireEnv(name: string): string {
 const SUPABASE_URL = requireEnv('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = requireEnv('SUPABASE_SERVICE_ROLE_KEY');
 const LLM_PROVIDER = requireEnv('LLM_PROVIDER');
-const LLM_MODEL = Deno.env.get('LLM_MODEL');
+const LLM_MODEL = requireEnv('LLM_MODEL');
 const POLL_INTERVAL_MS = parseInt(Deno.env.get('POLL_INTERVAL_MS') ?? '5000', 10);
 const HEALTH_PORT = parseInt(Deno.env.get('HEALTH_PORT') ?? '8080', 10);
 

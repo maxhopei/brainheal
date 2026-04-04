@@ -35,6 +35,8 @@ export const app = new Hono().basePath('/ingest');
 
 const INGESTION_MODE = Deno.env.get('INGESTION_MODE') ?? 'deferred';
 
+console.log('Ingestion mode:', INGESTION_MODE)
+
 // LLM configuration (only needed for immediate mode)
 let llmProvider: LLMProvider | null = null;
 
@@ -46,6 +48,9 @@ function initLLMProvider(): LLMProvider {
 
   if (!provider) {
     throw new Error('LLM_PROVIDER environment variable is required for immediate mode');
+  }
+  if (!model) {
+    throw new Error('LLM_MODEL environment variable is required for immediate mode');
   }
 
   if (provider === 'bedrock') {
