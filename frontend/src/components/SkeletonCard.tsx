@@ -27,8 +27,6 @@ export function SkeletonCard({ feedItem }: SkeletonCardProps) {
         <>
           <div className={`${styles.shimmerLine} ${styles.shimmerLong}`} />
           <div className={`${styles.shimmerLine} ${styles.shimmerMedium}`} />
-          <div className={`${styles.shimmerLine} ${styles.shimmerShort}`} />
-          <div className={`${styles.shimmerLine} ${styles.shimmerMedium}`} />
         </>
       )}
 

@@ -51,7 +51,6 @@ function QueueItemRow({ item, onRetry }: QueueItemRowProps) {
       </div>
 
       <p className={styles.inputValue}>
-        {item.input_type === 'url' ? '🔗 ' : '✍ '}
         {truncated}
       </p>
 
