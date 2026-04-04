@@ -31,8 +31,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { Hono } from 'hono';
 import type { Context } from 'hono';
-import { createLLMProvider, BedrockProvider } from './llm.ts';
-import { processNextItem } from './processor.ts';
+import { createLLMProvider, BedrockProvider, processNextItem } from '@brainheal/shared';
 
 // ---------------------------------------------------------------------------
 // Configuration

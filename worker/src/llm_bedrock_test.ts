@@ -7,7 +7,7 @@
  */
 
 import { assertEquals, assertRejects, assertInstanceOf, assertMatch } from '@std/assert';
-import { BedrockProvider, createLLMProvider } from './llm.ts';
+import { BedrockProvider, createLLMProvider } from '@brainheal/shared';
 
 // ---------------------------------------------------------------------------
 // Helpers

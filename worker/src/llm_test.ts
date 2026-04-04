@@ -5,7 +5,7 @@
  */
 
 import { assertEquals, assertThrows, assertRejects } from '@std/assert';
-import { OpenAIProvider, AnthropicProvider, BedrockProvider, createLLMProvider } from './llm.ts';
+import { OpenAIProvider, AnthropicProvider, BedrockProvider, createLLMProvider } from '@brainheal/shared';
 
 // ---------------------------------------------------------------------------
 // JSON parsing tests (testing parseAndValidateLLMOutput indirectly via

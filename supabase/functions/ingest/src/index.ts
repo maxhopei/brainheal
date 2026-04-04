@@ -22,10 +22,15 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { IngestRequest, IngestResponse, ErrorResponse } from '@brainheal/shared';
-import { createLLMProvider, type LLMProvider } from './llm.ts';
-import { processItem } from './processor.ts';
-import { checkDailyBudget } from './budget.ts';
+import {
+  type IngestRequest,
+  type IngestResponse,
+  type ErrorResponse,
+  createLLMProvider,
+  type LLMProvider,
+  processItem,
+  checkDailyBudget,
+} from '@brainheal/shared';
 
 export const app = new Hono().basePath('/ingest');
 

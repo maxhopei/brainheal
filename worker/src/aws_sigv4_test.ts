@@ -10,7 +10,7 @@
  */
 
 import { assertEquals, assertMatch } from '@std/assert';
-import { signRequest } from './aws_sigv4.ts';
+import { signRequest } from '@brainheal/shared';
 
 // ---------------------------------------------------------------------------
 // Known test vector from AWS SigV4 test suite

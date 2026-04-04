@@ -1,5 +1,12 @@
 {
   "name": "@brainheal/shared",
   "version": "0.1.0",
-  "exports": "./mod.ts"
+  "exports": "./mod.ts",
+  "imports": {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@^2",
+    "openai": "npm:openai@^4",
+    "@anthropic-ai/sdk": "npm:@anthropic-ai/sdk@^0.39",
+    "@mozilla/readability": "npm:@mozilla/readability@^0.5",
+    "linkedom": "npm:linkedom@^0.18"
+  }
 }
