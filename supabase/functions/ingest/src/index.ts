@@ -22,7 +22,7 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { IngestRequest, IngestResponse, ErrorResponse } from '@brainheal/shared';
+import type { ErrorResponse, IngestRequest, IngestResponse } from '@brainheal/shared';
 import { createLLMProvider, type LLMProvider } from './llm.ts';
 import { processItem } from './processor.ts';
 import { checkDailyBudget } from './budget.ts';
@@ -35,7 +35,7 @@ export const app = new Hono().basePath('/ingest');
 
 const INGESTION_MODE = Deno.env.get('INGESTION_MODE') ?? 'deferred';
 
-console.log('Ingestion mode:', INGESTION_MODE)
+console.log('Ingestion mode:', INGESTION_MODE);
 
 // LLM configuration (only needed for immediate mode)
 let llmProvider: LLMProvider | null = null;
@@ -53,17 +53,28 @@ function initLLMProvider(): LLMProvider {
     throw new Error('LLM_MODEL environment variable is required for immediate mode');
   }
 
+  console.log('LLM Provider:', provider);
+  console.log('LLM Model:', model);
+
   if (provider === 'bedrock') {
     const accessKeyId = Deno.env.get('AWS_ACCESS_KEY_ID');
     const secretAccessKey = Deno.env.get('AWS_SECRET_ACCESS_KEY');
+
     if (!accessKeyId || !secretAccessKey) {
-      throw new Error('AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are required for Bedrock provider');
+      throw new Error(
+        'AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are required for Bedrock provider',
+      );
     }
+
+    console.log('AWS Access Key ID:', accessKeyId);
+    console.log('AWS Access Key:', secretAccessKey.substring(0, 4) + '...'); // Don't log full key
   } else {
     const apiKey = Deno.env.get('LLM_API_KEY');
     if (!apiKey) {
       throw new Error('LLM_API_KEY environment variable is required for immediate mode');
     }
+
+    console.log('LLM API Key:', apiKey.substring(0, 4) + '...'); // Don't log full key
   }
 
   const apiKey = Deno.env.get('LLM_API_KEY') ?? '';
@@ -373,7 +384,8 @@ async function markItemFailed(
 }
 
 // Health check
-app.get('/health', (c: Context) => c.json({
-  status: 'ok',
-  ingestion_mode: INGESTION_MODE,
-}));
+app.get('/health', (c: Context) =>
+  c.json({
+    status: 'ok',
+    ingestion_mode: INGESTION_MODE,
+  }));
