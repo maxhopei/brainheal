@@ -5,8 +5,7 @@
  * Provides a unified interface for OpenAI, Anthropic, and AWS Bedrock providers.
  */
 
-import type { LLMCardItem, LLMCardOutput } from '@brainheal/shared';
-import { signRequest } from './aws_sigv4.ts';
+import { type LLMCardItem, type LLMCardOutput, signRequest } from '../../_shared/mod.ts';
 
 // ---------------------------------------------------------------------------
 // Interface

@@ -7,7 +7,7 @@
 
 ## Implementation Status — Updated 2026-03-30
 
-**Tests passing:** 109/109 (packages/shared: 24, ingest Edge Function: 24, worker: 61)
+**Tests passing:** 109/109 (supabase/functions/_shared: 24, ingest Edge Function: 24, worker: 61)
 
 **Completed phases:** 0.1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 (partial — nav + all pages implemented; PWA manifest done), 13 (AWS Bedrock LLM provider — fully implemented)
 
@@ -43,8 +43,8 @@ Progress tracking legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] Create root `deno.json` (workspace array, shared imports: `hono`, `@supabase/supabase-js`, `@std/assert`)
 - [x] Create `deno.lock`
 - [x] Add `.gitignore` (`.env*`, `dist/`, `node_modules/`, `.DS_Store`)
-- [x] Create `packages/shared/deno.json` (name: `@brainheal/shared`)
-- [x] Create `packages/shared/mod.ts` (barrel export — re-exports from `types.ts`)
+- [x] Create `supabase/functions/_shared/deno.json` (name: `@brainheal/shared`)
+- [x] Create `supabase/functions/_shared/mod.ts` (barrel export — re-exports from `types.ts`)
 
 ### 0.2 Supabase project
 
@@ -166,7 +166,7 @@ File: `supabase/migrations/<timestamp>_rpc_functions.sql`
 - [x] Define `FavoriteGroup` type (matching `favorite_groups` table, with optional `favorites`)
 - [x] Define `Favorite` type (matching `favorites` table)
 - [x] Define `LLMCardOutput` type (shape returned by LLM JSON: `{ title, cards }`) — uses `LLMCardItem` discriminated union
-- [x] Export all types from `packages/shared/mod.ts`
+- [x] Export all types from `supabase/functions/_shared/mod.ts`
 
 ---
 
@@ -273,7 +273,7 @@ Directory: `worker/`
 ### 4.8 Dockerfile
 
 - [x] Use `denoland/deno:2.2.2` base image (pinned for reproducibility)
-- [x] Copy `worker/` and `packages/shared/` files; cache dependencies
+- [x] Copy `worker/` and `supabase/functions/_shared/` files; cache dependencies
 - [x] Runs as non-root user (`deno`)
 - [x] `CMD ["deno", "run", "--allow-all", "main.ts"]`
 

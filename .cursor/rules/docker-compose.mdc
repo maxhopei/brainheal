@@ -36,7 +36,7 @@ services:
 
 ## Dockerfile rules
 
-- Build context must always be the **repo root** — not the service subdirectory. This is required so that `deno.json`, `packages/shared/`, and other workspace members are accessible during the build.
+- Build context must always be the **repo root** — not the service subdirectory. This is required so that `deno.json`, `supabase/functions/_shared/`, and other workspace members are accessible during the build.
 - Copy all workspace member `deno.json` files into the image so Deno can resolve the workspace. Missing member configs cause `Could not find config file for workspace member` errors.
 - Do **not** copy `deno.lock` — the lockfile version may not match the Deno version in the image.
 
@@ -47,13 +47,13 @@ WORKDIR /app
 
 # Copy all workspace member deno.json files for workspace resolution
 COPY deno.json ./
-COPY packages/shared/deno.json ./packages/shared/
+COPY supabase/functions/_shared/deno.json ./supabase/functions/_shared/
 COPY worker/deno.json ./worker/
 COPY supabase/functions/ingest/deno.json ./supabase/functions/ingest/
 COPY supabase/functions/stripe-webhook/deno.json ./supabase/functions/stripe-webhook/
 COPY frontend/deno.json ./frontend/
 
-COPY packages/shared/ ./packages/shared/
+COPY supabase/functions/_shared/ ./supabase/functions/_shared/
 COPY worker/src/ ./worker/src/
 
 RUN deno cache ./worker/src/main.ts

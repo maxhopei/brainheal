@@ -5,8 +5,7 @@
  * The provider is selected at runtime via the LLM_PROVIDER environment variable.
  */
 
-import type { LLMCardItem, LLMCardOutput } from '@brainheal/shared';
-import { signRequest } from './aws_sigv4.ts';
+import { type LLMCardItem, type LLMCardOutput, signRequest } from '@brainheal/shared';
 
 // ---------------------------------------------------------------------------
 // Interface

@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "exports": "./src/main.tsx",
   "imports": {
-    "@brainheal/shared": "../packages/shared/mod.ts",
     "@deno/vite-plugin": "npm:@deno/vite-plugin@^1.0.6",
     "@supabase/supabase-js": "npm:@supabase/supabase-js@^2",
     "react": "npm:react@^18",

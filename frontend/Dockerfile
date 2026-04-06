@@ -6,14 +6,14 @@ WORKDIR /app
 
 # Copy all workspace member deno.json files for Deno workspace resolution
 COPY deno.json ./
-COPY packages/shared/deno.json ./packages/shared/
+COPY supabase/functions/_shared/deno.json ./supabase/functions/_shared/
 COPY worker/deno.json ./worker/
 COPY supabase/functions/ingest/deno.json ./supabase/functions/ingest/
 COPY supabase/functions/stripe-webhook/deno.json ./supabase/functions/stripe-webhook/
 COPY frontend/deno.json ./frontend/
 
 # Copy source files
-COPY packages/shared/ ./packages/shared/
+COPY supabase/functions/_shared/ ./supabase/functions/_shared/
 COPY frontend/ ./frontend/
 
 WORKDIR /app/frontend

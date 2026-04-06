@@ -74,14 +74,25 @@ export async function processNextItem(
   const inputValue: string = claimedItem.input_value;
   const retryCount: number = claimedItem.retry_count ?? 0;
 
-  log({ level: 'info', message: 'Processing queue item', queue_item_id: queueItemId, user_id: userId, input_type: inputType });
+  log({
+    level: 'info',
+    message: 'Processing queue item',
+    queue_item_id: queueItemId,
+    user_id: userId,
+    input_type: inputType,
+  });
 
   // 2. Check daily budget
   let budgetCheck;
   try {
     budgetCheck = await checkDailyBudget(supabase, userId);
   } catch (err) {
-    log({ level: 'error', message: 'Budget check failed', queue_item_id: queueItemId, error: String(err) });
+    log({
+      level: 'error',
+      message: 'Budget check failed',
+      queue_item_id: queueItemId,
+      error: String(err),
+    });
     // Revert to pending so it can be retried
     await supabase
       .from('queue_items')
@@ -126,7 +137,12 @@ export async function processNextItem(
     return true;
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    log({ level: 'error', message: 'Processing failed', queue_item_id: queueItemId, error: errorMessage });
+    log({
+      level: 'error',
+      message: 'Processing failed',
+      queue_item_id: queueItemId,
+      error: errorMessage,
+    });
 
     const newRetryCount = retryCount + 1;
 
@@ -141,7 +157,11 @@ export async function processNextItem(
           error_message: errorMessage,
         })
         .eq('id', queueItemId);
-      log({ level: 'warn', message: `Retrying item (attempt ${newRetryCount + 1}/${MAX_RETRIES})`, queue_item_id: queueItemId });
+      log({
+        level: 'warn',
+        message: `Retrying item (attempt ${newRetryCount + 1}/${MAX_RETRIES})`,
+        queue_item_id: queueItemId,
+      });
     } else {
       // Mark as failed
       await supabase
@@ -169,7 +189,11 @@ export async function processNextItem(
           .eq('id', feedItem.post_id);
       }
 
-      log({ level: 'error', message: 'Item permanently failed after max retries', queue_item_id: queueItemId });
+      log({
+        level: 'error',
+        message: 'Item permanently failed after max retries',
+        queue_item_id: queueItemId,
+      });
     }
 
     return false;
@@ -201,14 +225,24 @@ async function processItem(
   let articleImages: string[] = [];
 
   if (inputType === 'url') {
-    log({ level: 'info', message: 'Fetching article', queue_item_id: queueItemId, url: inputValue });
+    log({
+      level: 'info',
+      message: 'Fetching article',
+      queue_item_id: queueItemId,
+      url: inputValue,
+    });
     const fetched = await fetchArticle(inputValue);
     articleContent = fetched.text;
     articleTitle = fetched.title;
     articleImages = fetched.images;
   } else {
     // Free text: use LLM to research the topic first
-    log({ level: 'info', message: 'Researching topic', queue_item_id: queueItemId, topic: inputValue });
+    log({
+      level: 'info',
+      message: 'Researching topic',
+      queue_item_id: queueItemId,
+      topic: inputValue,
+    });
     articleContent = await llm.researchTopic(inputValue);
     articleTitle = inputValue;
   }
@@ -249,7 +283,12 @@ async function processItem(
   log({ level: 'info', message: 'Created post', queue_item_id: queueItemId, post_id: postId });
 
   // 4. Insert cards
-  const cardRows = buildCardRows(output, postId, articleImages, inputType === 'url' ? inputValue : null);
+  const cardRows = buildCardRows(
+    output,
+    postId,
+    articleImages,
+    inputType === 'url' ? inputValue : null,
+  );
 
   if (cardRows.length === 0) {
     // No valid cards generated — mark post as failed
@@ -303,7 +342,12 @@ async function processItem(
 
   if (costError) {
     // Non-fatal: log but don't fail the job
-    log({ level: 'warn', message: 'Failed to record cost', queue_item_id: queueItemId, error: costError.message });
+    log({
+      level: 'warn',
+      message: 'Failed to record cost',
+      queue_item_id: queueItemId,
+      error: costError.message,
+    });
   }
 }
 

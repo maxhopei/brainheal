@@ -1,14 +1,13 @@
 {
   "workspace": [
-    "./packages/shared",
     "./frontend",
     "./worker",
+    "./supabase/functions/_shared",
     "./supabase/functions/ingest",
     "./supabase/functions/stripe-webhook"
   ],
   "nodeModulesDir": "auto",
   "imports": {
-    "@brainheal/shared": "./packages/shared/mod.ts",
     "@deno/vite-plugin": "npm:@deno/vite-plugin@^1.0.6",
     "hono": "npm:hono@^4",
     "hono/": "npm:hono@^4/",
@@ -47,7 +46,9 @@
   },
   "lint": {
     "rules": {
-      "exclude": ["no-explicit-any"]
+      "exclude": [
+        "no-explicit-any"
+      ]
     }
   },
   "fmt": {

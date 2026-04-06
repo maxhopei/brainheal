@@ -6,7 +6,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { LLMCardItem, LLMCardOutput } from '@brainheal/shared';
+import type { LLMCardItem, LLMCardOutput } from '../../_shared/mod.ts';
 import type { LLMProvider } from './llm.ts';
 import { fetchArticle } from './fetcher.ts';
 
@@ -52,19 +52,39 @@ export async function processItem(
   let articleImages: string[] = [];
 
   if (inputType === 'url') {
-    console.log(JSON.stringify({ level: 'info', message: 'Fetching article', queue_item_id: queueItemId, url: inputValue }));
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        message: 'Fetching article',
+        queue_item_id: queueItemId,
+        url: inputValue,
+      }),
+    );
     const fetched = await fetchArticle(inputValue);
     articleContent = fetched.text;
     articleTitle = fetched.title;
     articleImages = fetched.images;
   } else {
-    console.log(JSON.stringify({ level: 'info', message: 'Researching topic', queue_item_id: queueItemId, topic: inputValue }));
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        message: 'Researching topic',
+        queue_item_id: queueItemId,
+        topic: inputValue,
+      }),
+    );
     articleContent = await llm.researchTopic(inputValue);
     articleTitle = inputValue;
   }
 
   // 2. Generate cards via LLM
-  console.log(JSON.stringify({ level: 'info', message: 'Calling LLM to generate cards', queue_item_id: queueItemId }));
+  console.log(
+    JSON.stringify({
+      level: 'info',
+      message: 'Calling LLM to generate cards',
+      queue_item_id: queueItemId,
+    }),
+  );
   const llmResult = await llm.summarize(articleContent);
   const { output, usage } = llmResult;
 
@@ -96,10 +116,22 @@ export async function processItem(
   }
 
   const postId: string = post.id;
-  console.log(JSON.stringify({ level: 'info', message: 'Created post', queue_item_id: queueItemId, post_id: postId }));
+  console.log(
+    JSON.stringify({
+      level: 'info',
+      message: 'Created post',
+      queue_item_id: queueItemId,
+      post_id: postId,
+    }),
+  );
 
   // 4. Insert cards
-  const cardRows = buildCardRows(output, postId, articleImages, inputType === 'url' ? inputValue : null);
+  const cardRows = buildCardRows(
+    output,
+    postId,
+    articleImages,
+    inputType === 'url' ? inputValue : null,
+  );
 
   if (cardRows.length === 0) {
     await supabase
@@ -151,7 +183,14 @@ export async function processItem(
     });
 
   if (costError) {
-    console.warn(JSON.stringify({ level: 'warn', message: 'Failed to record cost', queue_item_id: queueItemId, error: costError.message }));
+    console.warn(
+      JSON.stringify({
+        level: 'warn',
+        message: 'Failed to record cost',
+        queue_item_id: queueItemId,
+        error: costError.message,
+      }),
+    );
   }
 }
 

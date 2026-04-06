@@ -232,12 +232,12 @@ async function processInBackground(
 
 ### 5.2 Shared Processing Module
 
-**Location:** `packages/shared/src/processor.ts` (or inline in both ingest and worker for simplicity)
+**Location:** `supabase/functions/_shared/ingest/processor.ts` (or inline in both ingest and worker for simplicity)
 
 **Exports:**
 - `processItem(supabase, llm, ctx)`: Core processing logic (fetch + LLM + save)
 
-This module is the current `worker/src/processor.ts` logic, minus:
+This module is the current `supabase/functions/_shared/ingest/processor.ts` logic, minus:
 - The `processNextItem()` function (worker-specific queue claiming)
 - Budget enforcement (moved to caller)
 

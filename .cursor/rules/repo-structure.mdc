@@ -41,7 +41,7 @@ brainheal/                      ← workspace root (deno.json here)
 ```jsonc
 {
   "workspace": [
-    "./packages/shared",
+    "./supabase/functions/_shared",
     "./frontend",
     "./worker",
     "./supabase/functions/ingest",
@@ -77,7 +77,7 @@ Every workspace member **must** have:
 - `"exports"`: entry point(s)
 
 ```jsonc
-// packages/shared/deno.json — example
+// supabase/functions/_shared/deno.json — example
 {
   "name": "@brainheal/shared",
   "version": "0.1.0",
@@ -89,7 +89,7 @@ Members may override or extend root `compilerOptions`, `fmt`, and `lint`. They i
 
 ## Naming rules
 
-- Workspace member **directory names**: `kebab-case` (e.g., `packages/shared`, `stripe-webhook`)
+- Workspace member **directory names**: `kebab-case` (e.g., `supabase/functions/_shared`, `stripe-webhook`)
 - Package `"name"` field: `@brainheal/<kebab-case-name>`
 - Source files (all members): `kebab-case.ts` / `kebab-case.tsx`
 

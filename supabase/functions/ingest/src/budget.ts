@@ -6,7 +6,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { BillingTier } from '@brainheal/shared';
+import type { BillingTier } from '../../_shared/mod.ts';
 
 const FREE_MONTHLY_BUDGET_USD = parseFloat(
   Deno.env.get('FREE_MONTHLY_BUDGET_USD') ?? '1.00',
