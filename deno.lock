@@ -18,7 +18,8 @@
     "npm:vite-plugin-pwa@0.21": "0.21.2_vite@5.4.21_workbox-build@7.4.0_workbox-window@7.4.0",
     "npm:vite@*": "5.4.21",
     "npm:vite@5": "5.4.21",
-    "npm:workbox-window@7": "7.4.0"
+    "npm:workbox-window@7": "7.4.0",
+    "npm:zod@^4.3.6": "4.3.6"
   },
   "jsr": {
     "@std/assert@1.0.19": {
@@ -3523,31 +3524,23 @@
     "yallist@3.1.1": {
       "integrity": "sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g=="
     },
+    "zod@4.3.6": {
+      "integrity": "sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg=="
+    },
     "zwitch@2.0.4": {
       "integrity": "sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A=="
     }
   },
   "workspace": {
     "dependencies": [
-      "jsr:@std/assert@1",
-      "npm:@deno/vite-plugin@^1.0.6",
       "npm:@supabase/supabase-js@2",
-      "npm:@vitejs/plugin-react@4",
-      "npm:hono@4",
-      "npm:react-dom@18",
-      "npm:react-markdown@9",
-      "npm:react-router-dom@6",
-      "npm:react-swipeable@7",
-      "npm:react@18",
-      "npm:vite-plugin-pwa@0.21",
-      "npm:vite@5"
+      "npm:zod@^4.3.6"
     ],
     "members": {
       "frontend": {
         "dependencies": [
           "jsr:@std/assert@1",
           "npm:@deno/vite-plugin@^1.0.6",
-          "npm:@supabase/supabase-js@2",
           "npm:@vitejs/plugin-react@4",
           "npm:react-dom@18",
           "npm:react-markdown@9",
@@ -3573,14 +3566,16 @@
           "npm:@mozilla/readability@0.5",
           "npm:@supabase/supabase-js@2",
           "npm:hono@4",
-          "npm:linkedom@0.18"
+          "npm:linkedom@0.18",
+          "npm:zod@^4.3.6"
         ]
       },
       "supabase/functions/stripe-webhook": {
         "dependencies": [
           "jsr:@std/assert@1",
           "npm:@supabase/supabase-js@2",
-          "npm:hono@4"
+          "npm:hono@4",
+          "npm:zod@^4.3.6"
         ]
       },
       "worker": {

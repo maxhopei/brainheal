@@ -1,150 +1,141 @@
 /**
- * worker/src/budget.ts — Daily LLM cost budget enforcement.
+ * Daily LLM cost budget enforcement.
  *
  * Computes per-user daily limits based on their billing tier and
  * their spending this month. The worker calls checkDailyBudget()
  * before each processing job.
  */
 
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { BillingTier } from '@brainheal/shared';
-
-// todo: move env variables to some sort of config.
-// Budget configuration — read from environment, with sensible defaults.
-// These can be overridden by Fly.io secrets.
-const FREE_MONTHLY_BUDGET_USD = parseFloat(
-  Deno.env.get('FREE_MONTHLY_BUDGET_USD') ?? '1.00',
-);
-const PAID_MONTHLY_BUDGET_USD = parseFloat(
-  Deno.env.get('PAID_MONTHLY_BUDGET_USD') ?? '10.00',
-);
-
-function getMonthlyBudget(tier: BillingTier): number {
-  return tier === 'paid' ? PAID_MONTHLY_BUDGET_USD : FREE_MONTHLY_BUDGET_USD;
-}
-
-/**
- * Returns the number of days remaining in the current calendar month,
- * including today (minimum 1 to avoid division by zero).
- */
-function remainingDaysInMonth(): number {
-  const now = new Date();
-  const lastDay = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0),
-  ).getUTCDate();
-  const remaining = lastDay - now.getUTCDate() + 1;
-  return Math.max(remaining, 1);
-}
-
-/**
- * Returns the start of today in UTC as an ISO string.
- */
-function startOfTodayUtc(): string {
-  const now = new Date();
-  return new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-  ).toISOString();
-}
-
-/**
- * Returns the start of the current calendar month in UTC as an ISO string.
- */
-function startOfCurrentMonthUtc(): string {
-  const now = new Date();
-  return new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
-  ).toISOString();
-}
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { BillingTier } from '@brainheal/shared'
 
 export type BudgetCheckResult = {
-  allowed: boolean;
-  dailyLimit: number;
-  todaySpend: number;
-  monthlySpend: number;
-  monthlyBudget: number;
-  remainingDays: number;
-};
+  allowed: boolean
+  dailyLimit: number
+  todaySpend: number
+  monthlySpend: number
+  monthlyBudget: number
+  remainingDays: number
+}
 
-/**
- * Checks whether the user is within their daily LLM processing budget.
- *
- * Algorithm:
- *   remaining_budget = monthly_budget - sum(costs this month)
- *   daily_limit = remaining_budget / remaining_days_in_month
- *   allowed = sum(today's costs) < daily_limit
- */
-export async function checkDailyBudget(
-  // deno-lint-ignore no-explicit-any
-  supabase: SupabaseClient<any>,
-  userId: string,
-): Promise<BudgetCheckResult> {
-  // 1. Get billing tier
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('billing_tier')
-    .eq('id', userId)
-    .single();
+export type TieredBudget = {
+  free: number
+  paid: number
+}
 
-  if (profileError || !profile) {
-    throw new Error(
-      `Failed to fetch profile for user ${userId}: ${profileError?.message}`,
-    );
+export class Accountant {
+  constructor(private readonly tieredBudget: TieredBudget) {
   }
 
-  const tier = (profile.billing_tier as BillingTier) ?? 'free';
-  const monthlyBudget = getMonthlyBudget(tier);
+  public async checkDailyBudget(
+    supabase: SupabaseClient,
+    userId: string,
+  ): Promise<BudgetCheckResult> {
+    // 1. Get billing tier
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('billing_tier')
+      .eq('id', userId)
+      .single()
 
-  // 2. Get monthly spend
-  const monthStart = startOfCurrentMonthUtc();
-  const { data: monthlyRecords, error: monthlyError } = await supabase
-    .from('cost_records')
-    .select('cost_usd')
-    .eq('user_id', userId)
-    .gte('created_at', monthStart);
+    if (profileError || !profile) {
+      throw new Error(
+        `Failed to fetch profile for user ${userId}: ${profileError?.message}`,
+      )
+    }
 
-  if (monthlyError) {
-    throw new Error(
-      `Failed to fetch monthly costs for user ${userId}: ${monthlyError.message}`,
-    );
+    const tier = (profile.billing_tier as BillingTier) ?? 'free'
+    const monthlyBudget = this.getMonthlyBudget(tier)
+
+    // 2. Get monthly spend
+    const monthStart = this.startOfCurrentMonthUtc()
+    const { data: monthlyRecords, error: monthlyError } = await supabase
+      .from('cost_records')
+      .select('cost_usd')
+      .eq('user_id', userId)
+      .gte('created_at', monthStart)
+
+    if (monthlyError) {
+      throw new Error(
+        `Failed to fetch monthly costs for user ${userId}: ${monthlyError.message}`,
+      )
+    }
+
+    const monthlySpend = (monthlyRecords ?? []).reduce(
+      (sum: number, r: { cost_usd: number }) => sum + Number(r.cost_usd),
+      0,
+    )
+
+    // 3. Compute daily limit
+    const remainingDays = this.remainingDaysInMonth()
+    const remainingBudget = Math.max(monthlyBudget - monthlySpend, 0)
+    const dailyLimit = remainingBudget / remainingDays
+
+    // 4. Get today's spend
+    const todayStart = this.startOfTodayUtc()
+    const { data: todayRecords, error: todayError } = await supabase
+      .from('cost_records')
+      .select('cost_usd')
+      .eq('user_id', userId)
+      .gte('created_at', todayStart)
+
+    if (todayError) {
+      throw new Error(
+        `Failed to fetch today's costs for user ${userId}: ${todayError.message}`,
+      )
+    }
+
+    const todaySpend = (todayRecords ?? []).reduce(
+      (sum: number, r: { cost_usd: number }) => sum + Number(r.cost_usd),
+      0,
+    )
+
+    const allowed = todaySpend < dailyLimit
+
+    return {
+      allowed,
+      dailyLimit,
+      todaySpend,
+      monthlySpend,
+      monthlyBudget,
+      remainingDays,
+    }
   }
 
-  const monthlySpend = (monthlyRecords ?? []).reduce(
-    (sum: number, r: { cost_usd: number }) => sum + Number(r.cost_usd),
-    0,
-  );
-
-  // 3. Compute daily limit
-  const remainingDays = remainingDaysInMonth();
-  const remainingBudget = Math.max(monthlyBudget - monthlySpend, 0);
-  const dailyLimit = remainingBudget / remainingDays;
-
-  // 4. Get today's spend
-  const todayStart = startOfTodayUtc();
-  const { data: todayRecords, error: todayError } = await supabase
-    .from('cost_records')
-    .select('cost_usd')
-    .eq('user_id', userId)
-    .gte('created_at', todayStart);
-
-  if (todayError) {
-    throw new Error(
-      `Failed to fetch today's costs for user ${userId}: ${todayError.message}`,
-    );
+  private getMonthlyBudget(tier: keyof TieredBudget): number {
+    return this.tieredBudget[tier] ?? 'free'
   }
 
-  const todaySpend = (todayRecords ?? []).reduce(
-    (sum: number, r: { cost_usd: number }) => sum + Number(r.cost_usd),
-    0,
-  );
+  /**
+   * Returns the number of days remaining in the current calendar month,
+   * including today (minimum 1 to avoid division by zero).
+   */
+  private remainingDaysInMonth(): number {
+    const now = new Date()
+    const lastDay = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0),
+    ).getUTCDate()
+    const remaining = lastDay - now.getUTCDate() + 1
+    return Math.max(remaining, 1)
+  }
 
-  const allowed = todaySpend < dailyLimit;
+  /**
+   * Returns the start of today in UTC as an ISO string.
+   */
+  private startOfTodayUtc(): string {
+    const now = new Date()
+    return new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    ).toISOString()
+  }
 
-  return {
-    allowed,
-    dailyLimit,
-    todaySpend,
-    monthlySpend,
-    monthlyBudget,
-    remainingDays,
-  };
+  /**
+   * Returns the start of the current calendar month in UTC as an ISO string.
+   */
+  private startOfCurrentMonthUtc(): string {
+    const now = new Date()
+    return new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+    ).toISOString()
+  }
 }

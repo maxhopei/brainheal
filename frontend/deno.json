@@ -1,5 +1,4 @@
 {
-  "name": "@brainheal/frontend",
   "version": "0.1.0",
   "tasks": {
     "dev": "deno run --allow-all npm:vite",

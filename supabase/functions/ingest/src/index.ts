@@ -19,20 +19,16 @@
  * 7. (Immediate mode only) Processes the item in the background
  */
 
-import { Hono } from 'hono';
-import type { Context } from 'hono';
-import { cors } from 'hono/cors';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { ErrorResponse, IngestRequest, IngestResponse } from '@brainheal/shared';
-import {
-  BedrockCredentials,
-  checkDailyBudget,
-  createLLMProvider,
-  type LLMProvider,
-} from '@brainheal/ingestion';
-import { processItem } from './processor.ts';
+import { Hono } from 'hono'
+import type { Context } from 'hono'
+import { cors } from 'hono/cors'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import type { ErrorResponse, IngestRequest, IngestResponse } from '@brainheal/shared'
+import { Accountant, createLLMProvider, type LLMProvider } from '@brainheal/ingestion'
+import { processItem } from './processor.ts'
+import { config } from './config.ts'
 
-export const app = new Hono().basePath('/ingest');
+export const app = new Hono().basePath('/ingest')
 
 app.use(
   '/*',
@@ -42,64 +38,32 @@ app.use(
     maxAge: 600,
     credentials: true,
   }),
-);
+)
 
-// ---------------------------------------------------------------------------
-// Configuration
-// ---------------------------------------------------------------------------
-
-const INGESTION_MODE = Deno.env.get('INGESTION_MODE') ?? 'deferred';
-
-console.log('Ingestion mode:', INGESTION_MODE);
-
-// LLM configuration (only needed for immediate mode)
-let llmProvider: LLMProvider | null = null;
+let llmProvider: LLMProvider | null = null
 
 function initLLMProvider(): LLMProvider {
-  if (llmProvider) return llmProvider;
+  if (llmProvider) return llmProvider
 
-  const provider = Deno.env.get('LLM_PROVIDER');
-  const model = Deno.env.get('LLM_MODEL');
-  let bedrockCredentials: BedrockCredentials | undefined = undefined;
-  let apiKey: string | undefined = '';
-
-  if (!provider) {
-    throw new Error('LLM_PROVIDER environment variable is required for immediate mode');
-  }
-  if (!model) {
-    throw new Error('LLM_MODEL environment variable is required for immediate mode');
-  }
-
-  console.log('LLM Provider:', provider);
-  console.log('LLM Model:', model);
-
-  if (provider === 'bedrock') {
-    const accessKeyId = Deno.env.get('AWS_ACCESS_KEY_ID');
-    const secretAccessKey = Deno.env.get('AWS_SECRET_ACCESS_KEY');
-    const region = Deno.env.get('AWS_REGION') ?? 'us-east-1';
-
-    if (!accessKeyId || !secretAccessKey) {
-      throw new Error(
-        'AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are required for Bedrock provider',
-      );
+  if (config.llm.provider === 'bedrock') {
+    const bedrockCredentials = {
+      accessKeyId: config.llm.aws.accessKeyId!,
+      secretAccessKey: config.llm.aws.secretAccessKey!,
+      region: config.llm.aws.region!,
     }
 
-    bedrockCredentials = { accessKeyId, secretAccessKey, region };
-
-    console.log('AWS Access Key ID:', accessKeyId);
-    console.log('AWS Access Key:', secretAccessKey.substring(0, 4) + '...'); // Don't log full key
+    llmProvider = createLLMProvider(config.llm.provider, config.llm.model, bedrockCredentials)
   } else {
-    apiKey = Deno.env.get('LLM_API_KEY');
-    if (!apiKey) {
-      throw new Error('LLM_API_KEY environment variable is required for immediate mode');
-    }
-
-    console.log('LLM API Key:', apiKey.substring(0, 4) + '...'); // Don't log full key
+    llmProvider = createLLMProvider(config.llm.provider, config.llm.model, config.llm.apiKey!)
   }
 
-  llmProvider = createLLMProvider(provider, apiKey, model, bedrockCredentials);
-  return llmProvider;
+  return llmProvider
 }
+
+const accountant = new Accountant({
+  free: config.billing.freeMonthlyBudgetUsd,
+  paid: config.billing.paidMonthlyBudgetUsd,
+})
 
 // ---------------------------------------------------------------------------
 // Input validation helpers
@@ -110,10 +74,10 @@ function initLLMProvider(): LLMProvider {
  */
 export function isValidUrl(value: string): boolean {
   try {
-    const url = new URL(value);
-    return url.protocol === 'http:' || url.protocol === 'https:';
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:'
   } catch {
-    return false;
+    return false
   }
 }
 
@@ -123,7 +87,7 @@ export function isValidUrl(value: string): boolean {
 export function sanitizeText(value: string): string {
   // Remove control characters (except newlines and tabs which may be intentional)
   // deno-lint-ignore no-control-regex
-  return value.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim();
+  return value.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim()
 }
 
 /**
@@ -132,36 +96,36 @@ export function sanitizeText(value: string): string {
  */
 export function validateIngestBody(body: unknown): IngestRequest {
   if (typeof body !== 'object' || body === null) {
-    throw new Error('Request body must be a JSON object');
+    throw new Error('Request body must be a JSON object')
   }
 
-  const { type, value } = body as Record<string, unknown>;
+  const { type, value } = body as Record<string, unknown>
 
   if (type !== 'url' && type !== 'text') {
-    throw new Error('Field "type" must be "url" or "text"');
+    throw new Error('Field "type" must be "url" or "text"')
   }
 
   if (typeof value !== 'string') {
-    throw new Error('Field "value" must be a string');
+    throw new Error('Field "value" must be a string')
   }
 
   if (type === 'url') {
-    const trimmed = value.trim();
+    const trimmed = value.trim()
     if (!isValidUrl(trimmed)) {
-      throw new Error('Invalid URL: must be a valid http/https URL');
+      throw new Error('Invalid URL: must be a valid http/https URL')
     }
-    return { type: 'url', value: trimmed };
+    return { type: 'url', value: trimmed }
   }
 
   // type === 'text'
-  const sanitized = sanitizeText(value);
+  const sanitized = sanitizeText(value)
   if (sanitized.length < 3) {
-    throw new Error('Text input must be at least 3 characters');
+    throw new Error('Text input must be at least 3 characters')
   }
   if (sanitized.length > 10_000) {
-    throw new Error('Text input must not exceed 10,000 characters');
+    throw new Error('Text input must not exceed 10,000 characters')
   }
-  return { type: 'text', value: sanitized };
+  return { type: 'text', value: sanitized }
 }
 
 // ---------------------------------------------------------------------------
@@ -170,51 +134,46 @@ export function validateIngestBody(body: unknown): IngestRequest {
 
 app.post('/', async (c: Context) => {
   // ---- 1. Auth ----
-  const authHeader = c.req.header('Authorization');
+  const authHeader = c.req.header('Authorization')
   if (!authHeader) {
-    return c.json({ error: 'Missing Authorization header' } satisfies ErrorResponse, 401);
-  }
-
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
-  const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-  if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
-    console.error('Missing Supabase environment variables');
-    return c.json({ error: 'Server configuration error' } satisfies ErrorResponse, 500);
+    return c.json({ error: 'Missing Authorization header' } satisfies ErrorResponse, 401)
   }
 
   // Create user-context client to validate JWT
-  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: authHeader } },
-  });
+  const userClient = createClient(
+    config.supabase.url,
+    config.supabase.publishableKey,
+    {
+      global: { headers: { Authorization: authHeader } },
+    },
+  )
 
-  const { data: { user }, error: authError } = await userClient.auth.getUser();
+  const { data: { user }, error: authError } = await userClient.auth.getUser()
   if (authError || !user) {
-    return c.json({ error: 'Unauthorized' } satisfies ErrorResponse, 401);
+    return c.json({ error: 'Unauthorized' } satisfies ErrorResponse, 401)
   }
 
   // ---- 2. Parse and validate body ----
-  let body: unknown;
+  let body: unknown
   try {
-    body = await c.req.json();
+    body = await c.req.json()
   } catch {
-    return c.json({ error: 'Request body must be valid JSON' } satisfies ErrorResponse, 400);
+    return c.json({ error: 'Request body must be valid JSON' } satisfies ErrorResponse, 400)
   }
 
-  let validated: IngestRequest;
+  let validated: IngestRequest
   try {
-    validated = validateIngestBody(body);
+    validated = validateIngestBody(body)
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Invalid request';
-    return c.json({ error: message } satisfies ErrorResponse, 400);
+    const message = err instanceof Error ? err.message : 'Invalid request'
+    return c.json({ error: message } satisfies ErrorResponse, 400)
   }
 
   // ---- 3. Insert queue_item and feed_item (using service_role to bypass RLS) ----
-  const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey);
+  const adminClient = createClient(config.supabase.url, config.supabase.serviceRoleKey)
 
   // Insert queue_item (status depends on mode)
-  const initialStatus = INGESTION_MODE === 'immediate' ? 'processing' : 'pending';
+  const initialStatus = config.ingestionMode === 'immediate' ? 'processing' : 'pending'
   const { data: queueItem, error: queueError } = await adminClient
     .from('queue_items')
     .insert({
@@ -223,14 +182,14 @@ app.post('/', async (c: Context) => {
       input_value: validated.value,
       status: initialStatus,
       retry_count: 0,
-      started_at: INGESTION_MODE === 'immediate' ? new Date().toISOString() : null,
+      started_at: config.ingestionMode === 'immediate' ? new Date().toISOString() : null,
     })
     .select('id')
-    .single();
+    .single()
 
   if (queueError || !queueItem) {
-    console.error('Failed to insert queue_item:', queueError);
-    return c.json({ error: 'Failed to create queue item' } satisfies ErrorResponse, 500);
+    console.error('Failed to insert queue_item:', queueError)
+    return c.json({ error: 'Failed to create queue item' } satisfies ErrorResponse, 500)
   }
 
   // Compute next feed position: MAX(position) + 1 for this user
@@ -240,14 +199,14 @@ app.post('/', async (c: Context) => {
     .eq('user_id', user.id)
     .order('position', { ascending: false })
     .limit(1)
-    .maybeSingle();
+    .maybeSingle()
 
   if (posError) {
-    console.error('Failed to query max feed position:', posError);
-    return c.json({ error: 'Failed to compute feed position' } satisfies ErrorResponse, 500);
+    console.error('Failed to query max feed position:', posError)
+    return c.json({ error: 'Failed to compute feed position' } satisfies ErrorResponse, 500)
   }
 
-  const nextPosition = posData ? (posData.position as number) + 1 : 1;
+  const nextPosition = posData ? (posData.position as number) + 1 : 1
 
   // Insert feed_item with post_id=null (skeleton state)
   const { data: feedItem, error: feedError } = await adminClient
@@ -261,30 +220,30 @@ app.post('/', async (c: Context) => {
       source_type: 'self',
     })
     .select('id')
-    .single();
+    .single()
 
   if (feedError || !feedItem) {
-    console.error('Failed to insert feed_item:', feedError);
+    console.error('Failed to insert feed_item:', feedError)
     // Attempt to clean up the queue_item we just created
-    await adminClient.from('queue_items').delete().eq('id', queueItem.id);
-    return c.json({ error: 'Failed to create feed item' } satisfies ErrorResponse, 500);
+    await adminClient.from('queue_items').delete().eq('id', queueItem.id)
+    return c.json({ error: 'Failed to create feed item' } satisfies ErrorResponse, 500)
   }
 
   // ---- 4. Return 202 (and optionally process in background) ----
   const response: IngestResponse = {
     queue_item_id: queueItem.id,
     feed_item_id: feedItem.id,
-  };
-
-  if (INGESTION_MODE === 'immediate') {
-    // Process in background (non-blocking)
-    processInBackground(adminClient, user.id, queueItem.id, validated).catch((err) => {
-      console.error('Background processing failed:', err);
-    });
   }
 
-  return c.json(response, 202);
-});
+  if (config.ingestionMode === 'immediate') {
+    // Process in background (non-blocking)
+    processInBackground(adminClient, user.id, queueItem.id, validated).catch((err) => {
+      console.error('Background processing failed:', err)
+    })
+  }
+
+  return c.json(response, 202)
+})
 
 // ---------------------------------------------------------------------------
 // Background processing (immediate mode only)
@@ -302,11 +261,11 @@ async function processInBackground(
     userId,
     inputType: validated.type,
     inputValue: validated.value,
-  };
+  }
 
   // Check budget (non-blocking — log only)
   try {
-    const budgetCheck = await checkDailyBudget(supabase, userId);
+    const budgetCheck = await accountant.checkDailyBudget(supabase, userId)
     if (!budgetCheck.allowed) {
       console.warn(JSON.stringify({
         level: 'warn',
@@ -315,7 +274,7 @@ async function processInBackground(
         user_id: userId,
         daily_limit: budgetCheck.dailyLimit,
         today_spend: budgetCheck.todaySpend,
-      }));
+      }))
     }
   } catch (err) {
     console.warn(JSON.stringify({
@@ -323,51 +282,51 @@ async function processInBackground(
       message: 'Budget check failed (non-fatal in immediate mode)',
       queue_item_id: queueItemId,
       error: String(err),
-    }));
+    }))
   }
 
   // Initialize LLM provider
-  let llm: LLMProvider;
+  let llm: LLMProvider
   try {
-    llm = initLLMProvider();
+    llm = initLLMProvider()
   } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
+    const errorMessage = err instanceof Error ? err.message : String(err)
     console.error(JSON.stringify({
       level: 'error',
       message: 'Failed to initialize LLM provider',
       queue_item_id: queueItemId,
       error: errorMessage,
-    }));
+    }))
 
-    await markItemFailed(supabase, queueItemId, errorMessage);
-    return;
+    await markItemFailed(supabase, queueItemId, errorMessage)
+    return
   }
 
   // Process the item
   try {
-    await processItem(supabase, llm, ctx);
+    await processItem(supabase, llm, ctx)
 
     // Mark completed
     await supabase
       .from('queue_items')
       .update({ status: 'completed', completed_at: new Date().toISOString() })
-      .eq('id', queueItemId);
+      .eq('id', queueItemId)
 
     console.log(JSON.stringify({
       level: 'info',
       message: 'Queue item completed',
       queue_item_id: queueItemId,
-    }));
+    }))
   } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
+    const errorMessage = err instanceof Error ? err.message : String(err)
     console.error(JSON.stringify({
       level: 'error',
       message: 'Processing failed',
       queue_item_id: queueItemId,
       error: errorMessage,
-    }));
+    }))
 
-    await markItemFailed(supabase, queueItemId, errorMessage);
+    await markItemFailed(supabase, queueItemId, errorMessage)
   }
 }
 
@@ -385,20 +344,20 @@ async function markItemFailed(
       error_message: errorMessage,
       completed_at: new Date().toISOString(),
     })
-    .eq('id', queueItemId);
+    .eq('id', queueItemId)
 
   // Update any associated post to failed status
   const { data: feedItem } = await supabase
     .from('feed_items')
     .select('post_id')
     .eq('queue_item_id', queueItemId)
-    .maybeSingle();
+    .maybeSingle()
 
   if (feedItem?.post_id) {
     await supabase
       .from('posts')
       .update({ status: 'failed', error_message: errorMessage })
-      .eq('id', feedItem.post_id);
+      .eq('id', feedItem.post_id)
   }
 }
 
@@ -406,5 +365,5 @@ async function markItemFailed(
 app.get('/health', (c: Context) =>
   c.json({
     status: 'ok',
-    ingestion_mode: INGESTION_MODE,
-  }));
+    ingestion_mode: config.ingestionMode,
+  }))

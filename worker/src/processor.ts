@@ -9,31 +9,31 @@
  * 5. Record LLM costs
  */
 
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { LLMCardItem, LLMCardOutput } from '@brainheal/shared';
-import type { LLMProvider } from '@brainheal/ingestion';
-import { fetchArticle, checkDailyBudget } from '@brainheal/ingestion';
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { LLMCardItem, LLMCardOutput } from '@brainheal/shared'
+import type { Accountant, LLMProvider } from '@brainheal/ingestion'
+import { fetchArticle } from '@brainheal/ingestion'
 
-const MAX_RETRIES = 2;
+const MAX_RETRIES = 2
 
 // ---------------------------------------------------------------------------
 // Structured logger
 // ---------------------------------------------------------------------------
 
-type LogLevel = 'info' | 'warn' | 'error';
+type LogLevel = 'info' | 'warn' | 'error'
 
 type LogPayload = {
-  level: LogLevel;
-  message: string;
-  queue_item_id?: string;
-  user_id?: string;
-  post_id?: string;
-  error?: string;
-  [key: string]: unknown;
-};
+  level: LogLevel
+  message: string
+  queue_item_id?: string
+  user_id?: string
+  post_id?: string
+  error?: string
+  [key: string]: unknown
+}
 
 function log(payload: LogPayload): void {
-  console.log(JSON.stringify({ timestamp: new Date().toISOString(), ...payload }));
+  console.log(JSON.stringify({ timestamp: new Date().toISOString(), ...payload }))
 }
 
 // ---------------------------------------------------------------------------
@@ -50,28 +50,29 @@ export async function processNextItem(
   // deno-lint-ignore no-explicit-any
   supabase: SupabaseClient<any>,
   llm: LLMProvider,
+  accountant: Accountant,
 ): Promise<boolean> {
   // 1. Claim the next pending item using a Postgres RPC to ensure atomicity
   const { data: claimedRows, error: claimError } = await supabase
-    .rpc('claim_next_queue_item');
+    .rpc('claim_next_queue_item')
 
   if (claimError) {
-    log({ level: 'error', message: 'Failed to claim queue item', error: claimError.message });
-    return false;
+    log({ level: 'error', message: 'Failed to claim queue item', error: claimError.message })
+    return false
   }
 
   // SETOF returns an array; empty array means queue is empty.
   // Normalise: PostgREST may return a plain object for single-row composite return types.
-  const claimedItem = Array.isArray(claimedRows) ? claimedRows[0] : claimedRows;
+  const claimedItem = Array.isArray(claimedRows) ? claimedRows[0] : claimedRows
 
   if (!claimedItem || !claimedItem.id) {
-    return false;
+    return false
   }
-  const queueItemId: string = claimedItem.id;
-  const userId: string = claimedItem.user_id;
-  const inputType: 'url' | 'text' = claimedItem.input_type;
-  const inputValue: string = claimedItem.input_value;
-  const retryCount: number = claimedItem.retry_count ?? 0;
+  const queueItemId: string = claimedItem.id
+  const userId: string = claimedItem.user_id
+  const inputType: 'url' | 'text' = claimedItem.input_type
+  const inputValue: string = claimedItem.input_value
+  const retryCount: number = claimedItem.retry_count ?? 0
 
   log({
     level: 'info',
@@ -79,25 +80,25 @@ export async function processNextItem(
     queue_item_id: queueItemId,
     user_id: userId,
     input_type: inputType,
-  });
+  })
 
   // 2. Check daily budget
-  let budgetCheck;
+  let budgetCheck
   try {
-    budgetCheck = await checkDailyBudget(supabase, userId);
+    budgetCheck = await accountant.checkDailyBudget(supabase, userId)
   } catch (err) {
     log({
       level: 'error',
       message: 'Budget check failed',
       queue_item_id: queueItemId,
       error: String(err),
-    });
+    })
     // Revert to pending so it can be retried
     await supabase
       .from('queue_items')
       .update({ status: 'pending', started_at: null })
-      .eq('id', queueItemId);
-    return false;
+      .eq('id', queueItemId)
+    return false
   }
 
   if (!budgetCheck.allowed) {
@@ -108,13 +109,13 @@ export async function processNextItem(
       user_id: userId,
       daily_limit: budgetCheck.dailyLimit,
       today_spend: budgetCheck.todaySpend,
-    });
+    })
     // Revert to pending so it will be picked up tomorrow
     await supabase
       .from('queue_items')
       .update({ status: 'pending', started_at: null })
-      .eq('id', queueItemId);
-    return false;
+      .eq('id', queueItemId)
+    return false
   }
 
   // 3. Process the item
@@ -124,26 +125,26 @@ export async function processNextItem(
       userId,
       inputType,
       inputValue,
-    });
+    })
 
     // 4. Mark completed
     await supabase
       .from('queue_items')
       .update({ status: 'completed', completed_at: new Date().toISOString() })
-      .eq('id', queueItemId);
+      .eq('id', queueItemId)
 
-    log({ level: 'info', message: 'Queue item completed', queue_item_id: queueItemId });
-    return true;
+    log({ level: 'info', message: 'Queue item completed', queue_item_id: queueItemId })
+    return true
   } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
+    const errorMessage = err instanceof Error ? err.message : String(err)
     log({
       level: 'error',
       message: 'Processing failed',
       queue_item_id: queueItemId,
       error: errorMessage,
-    });
+    })
 
-    const newRetryCount = retryCount + 1;
+    const newRetryCount = retryCount + 1
 
     if (newRetryCount < MAX_RETRIES) {
       // Re-queue for retry
@@ -155,12 +156,12 @@ export async function processNextItem(
           started_at: null,
           error_message: errorMessage,
         })
-        .eq('id', queueItemId);
+        .eq('id', queueItemId)
       log({
         level: 'warn',
         message: `Retrying item (attempt ${newRetryCount + 1}/${MAX_RETRIES})`,
         queue_item_id: queueItemId,
-      });
+      })
     } else {
       // Mark as failed
       await supabase
@@ -171,7 +172,7 @@ export async function processNextItem(
           error_message: errorMessage,
           completed_at: new Date().toISOString(),
         })
-        .eq('id', queueItemId);
+        .eq('id', queueItemId)
 
       // Update the associated feed_item's post to failed status (if a post was partially created)
       // Also update any existing post to failed
@@ -179,23 +180,23 @@ export async function processNextItem(
         .from('feed_items')
         .select('post_id')
         .eq('queue_item_id', queueItemId)
-        .maybeSingle();
+        .maybeSingle()
 
       if (feedItem?.post_id) {
         await supabase
           .from('posts')
           .update({ status: 'failed', error_message: errorMessage })
-          .eq('id', feedItem.post_id);
+          .eq('id', feedItem.post_id)
       }
 
       log({
         level: 'error',
         message: 'Item permanently failed after max retries',
         queue_item_id: queueItemId,
-      });
+      })
     }
 
-    return false;
+    return false
   }
 }
 
@@ -204,11 +205,11 @@ export async function processNextItem(
 // ---------------------------------------------------------------------------
 
 type ItemContext = {
-  queueItemId: string;
-  userId: string;
-  inputType: 'url' | 'text';
-  inputValue: string;
-};
+  queueItemId: string
+  userId: string
+  inputType: 'url' | 'text'
+  inputValue: string
+}
 
 async function processItem(
   // deno-lint-ignore no-explicit-any
@@ -216,12 +217,12 @@ async function processItem(
   llm: LLMProvider,
   ctx: ItemContext,
 ): Promise<void> {
-  const { queueItemId, userId, inputType, inputValue } = ctx;
+  const { queueItemId, userId, inputType, inputValue } = ctx
 
   // 1. Fetch or research content
-  let articleContent: string;
-  let articleTitle: string;
-  let articleImages: string[] = [];
+  let articleContent: string
+  let articleTitle: string
+  let articleImages: string[] = []
 
   if (inputType === 'url') {
     log({
@@ -229,11 +230,11 @@ async function processItem(
       message: 'Fetching article',
       queue_item_id: queueItemId,
       url: inputValue,
-    });
-    const fetched = await fetchArticle(inputValue);
-    articleContent = fetched.text;
-    articleTitle = fetched.title;
-    articleImages = fetched.images;
+    })
+    const fetched = await fetchArticle(inputValue)
+    articleContent = fetched.text
+    articleTitle = fetched.title
+    articleImages = fetched.images
   } else {
     // Free text: use LLM to research the topic first
     log({
@@ -241,15 +242,15 @@ async function processItem(
       message: 'Researching topic',
       queue_item_id: queueItemId,
       topic: inputValue,
-    });
-    articleContent = await llm.researchTopic(inputValue);
-    articleTitle = inputValue;
+    })
+    articleContent = await llm.researchTopic(inputValue)
+    articleTitle = inputValue
   }
 
   // 2. Generate cards via LLM
-  log({ level: 'info', message: 'Calling LLM to generate cards', queue_item_id: queueItemId });
-  const llmResult = await llm.summarize(articleContent);
-  const { output, usage } = llmResult;
+  log({ level: 'info', message: 'Calling LLM to generate cards', queue_item_id: queueItemId })
+  const llmResult = await llm.summarize(articleContent)
+  const { output, usage } = llmResult
 
   log({
     level: 'info',
@@ -259,7 +260,7 @@ async function processItem(
     tokens_input: usage.tokens_input,
     tokens_output: usage.tokens_output,
     cost_usd: usage.cost_usd,
-  });
+  })
 
   // 3. Create the post (with status='processing' until cards are persisted)
   const { data: post, error: postError } = await supabase
@@ -272,14 +273,14 @@ async function processItem(
       status: 'processing',
     })
     .select('id')
-    .single();
+    .single()
 
   if (postError || !post) {
-    throw new Error(`Failed to create post: ${postError?.message}`);
+    throw new Error(`Failed to create post: ${postError?.message}`)
   }
 
-  const postId: string = post.id;
-  log({ level: 'info', message: 'Created post', queue_item_id: queueItemId, post_id: postId });
+  const postId: string = post.id
+  log({ level: 'info', message: 'Created post', queue_item_id: queueItemId, post_id: postId })
 
   // 4. Insert cards
   const cardRows = buildCardRows(
@@ -287,33 +288,33 @@ async function processItem(
     postId,
     articleImages,
     inputType === 'url' ? inputValue : null,
-  );
+  )
 
   if (cardRows.length === 0) {
     // No valid cards generated — mark post as failed
     await supabase
       .from('posts')
       .update({ status: 'failed', error_message: 'LLM returned no valid cards' })
-      .eq('id', postId);
-    throw new Error('LLM returned no valid cards for this content');
+      .eq('id', postId)
+    throw new Error('LLM returned no valid cards for this content')
   }
 
   const { error: cardsError } = await supabase
     .from('cards')
-    .insert(cardRows);
+    .insert(cardRows)
 
   if (cardsError) {
-    throw new Error(`Failed to insert cards: ${cardsError.message}`);
+    throw new Error(`Failed to insert cards: ${cardsError.message}`)
   }
 
   // Mark post as ready now that cards are persisted
   const { error: postUpdateError } = await supabase
     .from('posts')
     .update({ status: 'ready' })
-    .eq('id', postId);
+    .eq('id', postId)
 
   if (postUpdateError) {
-    throw new Error(`Failed to mark post as ready: ${postUpdateError.message}`);
+    throw new Error(`Failed to mark post as ready: ${postUpdateError.message}`)
   }
 
   // 5. Update feed_item.post_id (this triggers Realtime notification to the client)
@@ -321,10 +322,10 @@ async function processItem(
     .from('feed_items')
     .update({ post_id: postId })
     .eq('queue_item_id', queueItemId)
-    .eq('user_id', userId);
+    .eq('user_id', userId)
 
   if (feedError) {
-    throw new Error(`Failed to update feed_item: ${feedError.message}`);
+    throw new Error(`Failed to update feed_item: ${feedError.message}`)
   }
 
   // 6. Record LLM costs
@@ -337,7 +338,7 @@ async function processItem(
       tokens_output: usage.tokens_output,
       cost_usd: usage.cost_usd,
       model_used: usage.model_used,
-    });
+    })
 
   if (costError) {
     // Non-fatal: log but don't fail the job
@@ -346,7 +347,7 @@ async function processItem(
       message: 'Failed to record cost',
       queue_item_id: queueItemId,
       error: costError.message,
-    });
+    })
   }
 }
 
@@ -355,13 +356,13 @@ async function processItem(
 // ---------------------------------------------------------------------------
 
 type CardRow = {
-  post_id: string;
-  position: number;
-  content_type: string;
-  text_content: string | null;
-  media_url: string | null;
-  media_caption: string | null;
-};
+  post_id: string
+  position: number
+  content_type: string
+  text_content: string | null
+  media_url: string | null
+  media_caption: string | null
+}
 
 function buildCardRows(
   output: LLMCardOutput,
@@ -369,20 +370,20 @@ function buildCardRows(
   images: string[],
   sourceUrl: string | null,
 ): CardRow[] {
-  const rows: CardRow[] = [];
-  let position = 1;
+  const rows: CardRow[] = []
+  let position = 1
 
   for (const card of output.cards) {
-    const row = buildCardRow(card, postId, position, sourceUrl);
+    const row = buildCardRow(card, postId, position, sourceUrl)
     if (row) {
-      rows.push(row);
-      position++;
+      rows.push(row)
+      position++
     }
   }
 
   // Append images from the article as image cards (after the text cards)
   for (const imageUrl of images) {
-    if (position > 7) break; // Enforce 7-card soft limit
+    if (position > 7) break // Enforce 7-card soft limit
     rows.push({
       post_id: postId,
       position,
@@ -390,11 +391,11 @@ function buildCardRows(
       text_content: null,
       media_url: imageUrl,
       media_caption: null,
-    });
-    position++;
+    })
+    position++
   }
 
-  return rows;
+  return rows
 }
 
 function buildCardRow(
@@ -411,12 +412,12 @@ function buildCardRow(
       text_content: card.content,
       media_url: null,
       media_caption: null,
-    };
+    }
   }
 
   if (card.type === 'key_points') {
     // Serialize key_points as Markdown bullet list in text_content
-    const text = card.items.map((item) => `- ${item}`).join('\n');
+    const text = card.items.map((item) => `- ${item}`).join('\n')
     return {
       post_id: postId,
       position,
@@ -424,13 +425,11 @@ function buildCardRow(
       text_content: text,
       media_url: null,
       media_caption: null,
-    };
+    }
   }
 
   if (card.type === 'quote') {
-    const text = card.attribution
-      ? `> ${card.content}\n\n— ${card.attribution}`
-      : `> ${card.content}`;
+    const text = card.attribution ? `> ${card.content}\n\n— ${card.attribution}` : `> ${card.content}`
     return {
       post_id: postId,
       position,
@@ -438,7 +437,7 @@ function buildCardRow(
       text_content: text,
       media_url: null,
       media_caption: null,
-    };
+    }
   }
 
   if (card.type === 'image') {
@@ -449,8 +448,8 @@ function buildCardRow(
       text_content: null,
       media_url: card.url,
       media_caption: card.caption ?? null,
-    };
+    }
   }
 
-  return null;
+  return null
 }
