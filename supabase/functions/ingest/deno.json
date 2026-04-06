@@ -7,6 +7,7 @@
     "@supabase/supabase-js": "npm:@supabase/supabase-js@^2",
     "hono": "npm:hono@^4",
     "hono/": "npm:hono@^4/",
+    "hono/cors": "npm:hono@^4/cors",
     "openai": "npm:openai@^4",
     "@anthropic-ai/sdk": "npm:@anthropic-ai/sdk@^0.39",
     "@mozilla/readability": "npm:@mozilla/readability@^0.5",

@@ -21,6 +21,7 @@
 
 import { Hono } from 'hono';
 import type { Context } from 'hono';
+import { cors } from 'hono/cors';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { ErrorResponse, IngestRequest, IngestResponse } from '@brainheal/shared';
 import { createLLMProvider, type LLMProvider } from './llm.ts';
@@ -28,6 +29,13 @@ import { processItem } from './processor.ts';
 import { checkDailyBudget } from './budget.ts';
 
 export const app = new Hono().basePath('/ingest');
+
+app.use('/*', cors({
+  origin: 'https://brain-heal.netlify.app',
+  allowMethods: ['POST', 'GET', 'OPTIONS'],
+  maxAge: 600,
+  credentials: true,
+}))
 
 // ---------------------------------------------------------------------------
 // Configuration
