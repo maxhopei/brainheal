@@ -1,13 +1,14 @@
 /**
- * worker/src/llm_bedrock_test.ts — Unit tests for BedrockProvider.
+ * Unit tests for BedrockProvider.
  *
  * All tests use a mocked `fetch` to avoid real API calls.
  * Tests verify: correct URL construction, SigV4 headers, request body format,
  * response parsing, cost calculation, error handling, and retry logic.
  */
 
-import { assertEquals, assertRejects, assertInstanceOf, assertMatch } from '@std/assert';
-import { BedrockProvider, createLLMProvider } from './llm.ts';
+import { assertEquals, assertInstanceOf, assertMatch, assertRejects } from '@std/assert';
+import { BedrockProvider } from './provider.ts';
+import { createLLMProvider } from '../llm-factory.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -31,7 +32,11 @@ function mockFetch(
 
   // deno-lint-ignore no-explicit-any
   (globalThis as any).fetch = async (url: string | URL | Request, options?: RequestInit) => {
-    const urlStr = typeof url === 'string' ? url : url instanceof URL ? url.toString() : (url as Request).url;
+    const urlStr = typeof url === 'string'
+      ? url
+      : url instanceof URL
+      ? url.toString()
+      : (url as Request).url;
     calls.push({ url: urlStr, options: options ?? {} });
 
     const bodyStr = typeof response.body === 'string'
@@ -90,7 +95,7 @@ const VALID_CARDS_JSON = JSON.stringify({
 // ---------------------------------------------------------------------------
 
 Deno.test('BedrockProvider - instantiates with default model and region', () => {
-  const provider = new BedrockProvider('AKID', 'SECRET');
+  const provider = new BedrockProvider('AKID', 'SECRET', 'test-region', 'test-model');
   assertInstanceOf(provider, BedrockProvider);
   assertEquals(typeof provider.summarize, 'function');
   assertEquals(typeof provider.researchTopic, 'function');
@@ -155,7 +160,7 @@ Deno.test('BedrockProvider.summarize - calls correct Bedrock Converse API URL', 
   });
 
   try {
-    const provider = new BedrockProvider('AKID', 'SECRET', 'us-east-1');
+    const provider = new BedrockProvider('AKID', 'SECRET', 'us-east-1', 'test-model');
     await provider.summarize('Test article content.');
 
     assertEquals(calls.length, 1);
@@ -175,7 +180,7 @@ Deno.test('BedrockProvider.summarize - uses custom region in URL', async () => {
   });
 
   try {
-    const provider = new BedrockProvider('AKID', 'SECRET', 'eu-central-1');
+    const provider = new BedrockProvider('AKID', 'SECRET', 'eu-central-1', 'test-model');
     await provider.summarize('Test content');
 
     assertEquals(calls.length, 1);
@@ -192,7 +197,7 @@ Deno.test('BedrockProvider.summarize - request includes SigV4 Authorization head
   });
 
   try {
-    const provider = new BedrockProvider('AKID123', 'SECRET456', 'us-east-1');
+    const provider = new BedrockProvider('AKID123', 'SECRET456', 'us-east-1', 'test-model');
     await provider.summarize('Test content');
 
     const headers = calls[0].options.headers as Record<string, string>;
@@ -211,7 +216,7 @@ Deno.test('BedrockProvider.summarize - request includes x-amz-date header', asyn
   });
 
   try {
-    const provider = new BedrockProvider('AKID', 'SECRET', 'us-east-1');
+    const provider = new BedrockProvider('AKID', 'SECRET', 'us-east-1', 'test-model');
     await provider.summarize('Test');
 
     const headers = calls[0].options.headers as Record<string, string>;
@@ -229,7 +234,7 @@ Deno.test('BedrockProvider.summarize - sends correct Converse API request body',
   });
 
   try {
-    const provider = new BedrockProvider('AKID', 'SECRET', 'us-east-1');
+    const provider = new BedrockProvider('AKID', 'SECRET', 'us-east-1', 'test-model');
     await provider.summarize('My article content here');
 
     const body = JSON.parse(calls[0].options.body as string);
@@ -257,7 +262,7 @@ Deno.test('BedrockProvider.summarize - parses response and returns LLMSummarizeR
   });
 
   try {
-    const provider = new BedrockProvider('AKID', 'SECRET');
+    const provider = new BedrockProvider('AKID', 'SECRET', 'test-region', 'test-model');
     const result = await provider.summarize('Article content');
 
     assertEquals(result.output.title, 'Test Article Summary');
@@ -284,7 +289,7 @@ Deno.test('BedrockProvider.summarize - calculates cost correctly for known model
     // Default model: anthropic.claude-3-5-haiku-20241022-v1:0
     // Input: $0.0008/1k = $0.8/1M, Output: $0.004/1k = $4/1M
     // For 1M input + 1M output → 0.8 + 4 = $4.8
-    const provider = new BedrockProvider('AKID', 'SECRET');
+    const provider = new BedrockProvider('AKID', 'SECRET', 'test-region', 'test-model');
     const result = await provider.summarize('Content');
 
     // Allow small float rounding
@@ -314,7 +319,10 @@ Deno.test('BedrockProvider.summarize - cost is 0 for unknown model (with warning
 
     assertEquals(result.usage.cost_usd, 0);
     // Should have logged a warning about unknown model
-    assertEquals(warnings.some((w) => w.includes('unknown-model-xyz') || w.includes('No pricing')), true);
+    assertEquals(
+      warnings.some((w) => w.includes('unknown-model-xyz') || w.includes('No pricing')),
+      true,
+    );
   } finally {
     restore();
     console.warn = originalWarn;
@@ -340,7 +348,7 @@ Deno.test('BedrockProvider.summarize - retries once on malformed JSON response',
   };
 
   try {
-    const provider = new BedrockProvider('AKID', 'SECRET');
+    const provider = new BedrockProvider('AKID', 'SECRET', 'test-region', 'test-model');
     const result = await provider.summarize('Content');
 
     assertEquals(callCount, 2);
@@ -358,7 +366,7 @@ Deno.test('BedrockProvider.summarize - throws after two failures', async () => {
   });
 
   try {
-    const provider = new BedrockProvider('AKID', 'SECRET');
+    const provider = new BedrockProvider('AKID', 'SECRET', 'test-region', 'test-model');
     await assertRejects(
       () => provider.summarize('Content'),
       Error,
@@ -376,7 +384,7 @@ Deno.test('BedrockProvider.summarize - throws on HTTP error response', async () 
   });
 
   try {
-    const provider = new BedrockProvider('AKID', 'SECRET');
+    const provider = new BedrockProvider('AKID', 'SECRET', 'test-region', 'test-model');
     await assertRejects(
       () => provider.summarize('Content'),
       Error,
@@ -398,7 +406,7 @@ Deno.test('BedrockProvider.researchTopic - calls Bedrock and returns text conten
   });
 
   try {
-    const provider = new BedrockProvider('AKID', 'SECRET', 'ap-southeast-1');
+    const provider = new BedrockProvider('AKID', 'SECRET', 'ap-southeast-1', 'test-model');
     const result = await provider.researchTopic('quantum computing');
 
     assertEquals(result, 'This is a comprehensive overview of quantum computing.');
@@ -416,7 +424,7 @@ Deno.test('BedrockProvider.researchTopic - sends research system prompt', async 
   });
 
   try {
-    const provider = new BedrockProvider('AKID', 'SECRET');
+    const provider = new BedrockProvider('AKID', 'SECRET', 'test-region', 'test-model');
     await provider.researchTopic('climate change');
 
     const body = JSON.parse(calls[0].options.body as string);
@@ -438,7 +446,7 @@ Deno.test('BedrockProvider.researchTopic - throws on HTTP error', async () => {
   });
 
   try {
-    const provider = new BedrockProvider('AKID', 'SECRET');
+    const provider = new BedrockProvider('AKID', 'SECRET', 'test-region', 'test-model');
     await assertRejects(
       () => provider.researchTopic('some topic'),
       Error,

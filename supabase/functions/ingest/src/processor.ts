@@ -6,9 +6,12 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { LLMCardItem, LLMCardOutput } from '../../_shared/mod.ts';
-import type { LLMProvider } from './llm.ts';
-import { fetchArticle } from './fetcher.ts';
+import type { LLMCardItem, LLMCardOutput } from '@brainheal/shared';
+import type { LLMProvider } from '@brainheal/ingestion';
+import { fetchArticle } from '@brainheal/ingestion';
+
+// todo: many overlapping things with worker/src/processor.ts
+//  Abstract out with "Queue".
 
 // ---------------------------------------------------------------------------
 // Types

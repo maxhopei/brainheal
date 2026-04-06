@@ -18,8 +18,7 @@ export type FetchedArticle = {
 const DEFAULT_TIMEOUT_MS = 15_000;
 
 const FETCH_HEADERS: Record<string, string> = {
-  'User-Agent':
-    'Mozilla/5.0 (compatible; BrainHealBot/1.0; +https://brainheal.app/bot)',
+  'User-Agent': 'Mozilla/5.0 (compatible; BrainHealBot/1.0; +https://brainheal.app/bot)',
   Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
   'Accept-Language': 'en-US,en;q=0.9',
   'Accept-Encoding': 'gzip, deflate',
@@ -90,7 +89,9 @@ export function extractArticleFromHtml(html: string, url: string): FetchedArticl
   const article = reader.parse();
 
   if (!article || !article.textContent || article.textContent.trim().length < 50) {
-    throw new Error(`Could not extract readable content from ${url}. Possible paywall or minimal content.`);
+    throw new Error(
+      `Could not extract readable content from ${url}. Possible paywall or minimal content.`,
+    );
   }
 
   // Extract image URLs from the article HTML

@@ -29,9 +29,9 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { type BedrockCredentials, createLLMProvider } from '@brainheal/ingestion';
 import { Hono } from 'hono';
 import type { Context } from 'hono';
-import { createLLMProvider, BedrockProvider } from './llm.ts';
 import { processNextItem } from './processor.ts';
 
 // ---------------------------------------------------------------------------
@@ -57,7 +57,11 @@ const HEALTH_PORT = parseInt(Deno.env.get('HEALTH_PORT') ?? '8080', 10);
 // Structured logger
 // ---------------------------------------------------------------------------
 
-function log(level: 'info' | 'warn' | 'error', message: string, extra?: Record<string, unknown>): void {
+function log(
+  level: 'info' | 'warn' | 'error',
+  message: string,
+  extra?: Record<string, unknown>,
+): void {
   console.log(JSON.stringify({ timestamp: new Date().toISOString(), level, message, ...extra }));
 }
 
@@ -66,16 +70,20 @@ function log(level: 'info' | 'warn' | 'error', message: string, extra?: Record<s
 // ---------------------------------------------------------------------------
 
 function buildLLMProvider() {
+  let bedrockCredentials: BedrockCredentials | undefined = undefined;
+  let apiKey: string = '';
+
   if (LLM_PROVIDER === 'bedrock') {
     const accessKeyId = requireEnv('AWS_ACCESS_KEY_ID');
     const secretAccessKey = requireEnv('AWS_SECRET_ACCESS_KEY');
     const region = Deno.env.get('AWS_REGION') ?? 'us-east-1';
-    return new BedrockProvider(accessKeyId, secretAccessKey, region, LLM_MODEL);
+    bedrockCredentials = { accessKeyId, secretAccessKey, region };
+  } else {
+    // openai or anthropic — both use LLM_API_KEY
+    apiKey = requireEnv('LLM_API_KEY');
   }
 
-  // openai or anthropic — both use LLM_API_KEY
-  const apiKey = requireEnv('LLM_API_KEY');
-  return createLLMProvider(LLM_PROVIDER, apiKey, LLM_MODEL);
+  return createLLMProvider(LLM_PROVIDER, apiKey, LLM_MODEL, bedrockCredentials);
 }
 
 // ---------------------------------------------------------------------------
@@ -179,4 +187,3 @@ async function shutdown(signal: string): Promise<void> {
 
 Deno.addSignalListener('SIGTERM', () => shutdown('SIGTERM'));
 Deno.addSignalListener('SIGINT', () => shutdown('SIGINT'));
-

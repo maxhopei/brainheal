@@ -4,8 +4,11 @@
  * Tests validation and parsing logic without making real API calls.
  */
 
-import { assertEquals, assertThrows, assertRejects } from '@std/assert';
-import { OpenAIProvider, AnthropicProvider, BedrockProvider, createLLMProvider } from './llm.ts';
+import { assertEquals, assertRejects, assertThrows } from '@std/assert';
+import { createLLMProvider } from './llm-factory.ts';
+import { OpenAIProvider } from './openai/provider.ts';
+import { AnthropicProvider } from './anthropic/provider.ts';
+import { BedrockProvider } from './aws-bedrock/provider.ts';
 
 // ---------------------------------------------------------------------------
 // JSON parsing tests (testing parseAndValidateLLMOutput indirectly via
@@ -53,19 +56,9 @@ Deno.test('AnthropicProvider instantiates with default model', () => {
 // ---------------------------------------------------------------------------
 
 Deno.test('BedrockProvider instantiates with default model and region', () => {
-  const provider = new BedrockProvider('AKID', 'SECRET');
+  const provider = new BedrockProvider('AKID', 'SECRET', 'test-region', 'test-model');
   assertEquals(typeof provider.summarize, 'function');
   assertEquals(typeof provider.researchTopic, 'function');
-});
-
-Deno.test('BedrockProvider instantiates with custom model', () => {
-  const provider = new BedrockProvider('AKID', 'SECRET', 'us-east-1', 'amazon.nova-pro-v1:0');
-  assertEquals(typeof provider.summarize, 'function');
-});
-
-Deno.test('BedrockProvider instantiates with custom region', () => {
-  const provider = new BedrockProvider('AKID', 'SECRET', 'eu-west-1');
-  assertEquals(typeof provider.summarize, 'function');
 });
 
 Deno.test('createLLMProvider returns BedrockProvider for "bedrock"', () => {
@@ -129,7 +122,12 @@ Deno.test('BedrockProvider.summarize calls fetch with signed headers and returns
   }) as typeof globalThis.fetch;
 
   try {
-    const provider = new BedrockProvider('AKID', 'SECRET', 'us-east-1', 'anthropic.claude-3-5-haiku-20241022-v1:0');
+    const provider = new BedrockProvider(
+      'AKID',
+      'SECRET',
+      'us-east-1',
+      'anthropic.claude-3-5-haiku-20241022-v1:0',
+    );
     const result = await provider.summarize('This is an article about testing.');
 
     // Verify URL was constructed correctly
@@ -202,11 +200,11 @@ Deno.test('BedrockProvider.summarize retries on malformed JSON', async () => {
       }),
       { status: 200, headers: { 'content-type': 'application/json' } },
     );
-  // deno-lint-ignore no-explicit-any
+    // deno-lint-ignore no-explicit-any
   }) as unknown as any;
 
   try {
-    const provider = new BedrockProvider('AKID', 'SECRET', 'us-east-1');
+    const provider = new BedrockProvider('AKID', 'SECRET', 'us-east-1', 'test-model');
     const result = await provider.summarize('Article content here.');
 
     assertEquals(callCount, 2); // Must have retried
@@ -233,7 +231,7 @@ Deno.test('BedrockProvider.summarize throws after two failed attempts', async ()
   };
 
   try {
-    const provider = new BedrockProvider('AKID', 'SECRET', 'us-east-1');
+    const provider = new BedrockProvider('AKID', 'SECRET', 'us-east-1', 'test-model');
     await assertRejects(
       () => provider.summarize('Bad content.'),
       Error,
@@ -256,7 +254,7 @@ Deno.test('BedrockProvider.summarize throws on HTTP error', async () => {
   };
 
   try {
-    const provider = new BedrockProvider('AKID', 'SECRET', 'us-east-1');
+    const provider = new BedrockProvider('AKID', 'SECRET', 'us-east-1', 'test-model');
     await assertRejects(
       () => provider.summarize('Content.'),
       Error,
@@ -286,7 +284,7 @@ Deno.test('BedrockProvider.researchTopic calls fetch and returns text content', 
   };
 
   try {
-    const provider = new BedrockProvider('AKID', 'SECRET', 'us-east-1');
+    const provider = new BedrockProvider('AKID', 'SECRET', 'us-east-1', 'test-model');
     const result = await provider.researchTopic('quantum computing');
     assertEquals(result, 'Comprehensive overview of the topic...');
   } finally {
@@ -372,4 +370,3 @@ Deno.test('BedrockProvider uses correct Bedrock endpoint URL with encoded model 
     globalThis.fetch = originalFetch;
   }
 });
-

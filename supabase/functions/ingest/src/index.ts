@@ -23,19 +23,26 @@ import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { cors } from 'hono/cors';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { ErrorResponse, IngestRequest, IngestResponse } from '../../_shared/mod.ts';
-import { createLLMProvider, type LLMProvider } from './llm.ts';
+import type { ErrorResponse, IngestRequest, IngestResponse } from '@brainheal/shared';
+import {
+  BedrockCredentials,
+  checkDailyBudget,
+  createLLMProvider,
+  type LLMProvider,
+} from '@brainheal/ingestion';
 import { processItem } from './processor.ts';
-import { checkDailyBudget } from './budget.ts';
 
 export const app = new Hono().basePath('/ingest');
 
-app.use('/*', cors({
-  origin: ['https://brain-heal.netlify.app', 'http://localhost:3000'],
-  allowMethods: ['POST', 'GET', 'OPTIONS'],
-  maxAge: 600,
-  credentials: true,
-}))
+app.use(
+  '/*',
+  cors({
+    origin: ['https://brain-heal.netlify.app', 'http://localhost:3000'],
+    allowMethods: ['POST', 'GET', 'OPTIONS'],
+    maxAge: 600,
+    credentials: true,
+  }),
+);
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -53,6 +60,8 @@ function initLLMProvider(): LLMProvider {
 
   const provider = Deno.env.get('LLM_PROVIDER');
   const model = Deno.env.get('LLM_MODEL');
+  let bedrockCredentials: BedrockCredentials | undefined = undefined;
+  let apiKey: string | undefined = '';
 
   if (!provider) {
     throw new Error('LLM_PROVIDER environment variable is required for immediate mode');
@@ -67,6 +76,7 @@ function initLLMProvider(): LLMProvider {
   if (provider === 'bedrock') {
     const accessKeyId = Deno.env.get('AWS_ACCESS_KEY_ID');
     const secretAccessKey = Deno.env.get('AWS_SECRET_ACCESS_KEY');
+    const region = Deno.env.get('AWS_REGION') ?? 'us-east-1';
 
     if (!accessKeyId || !secretAccessKey) {
       throw new Error(
@@ -74,10 +84,12 @@ function initLLMProvider(): LLMProvider {
       );
     }
 
+    bedrockCredentials = { accessKeyId, secretAccessKey, region };
+
     console.log('AWS Access Key ID:', accessKeyId);
     console.log('AWS Access Key:', secretAccessKey.substring(0, 4) + '...'); // Don't log full key
   } else {
-    const apiKey = Deno.env.get('LLM_API_KEY');
+    apiKey = Deno.env.get('LLM_API_KEY');
     if (!apiKey) {
       throw new Error('LLM_API_KEY environment variable is required for immediate mode');
     }
@@ -85,8 +97,7 @@ function initLLMProvider(): LLMProvider {
     console.log('LLM API Key:', apiKey.substring(0, 4) + '...'); // Don't log full key
   }
 
-  const apiKey = Deno.env.get('LLM_API_KEY') ?? '';
-  llmProvider = createLLMProvider(provider, apiKey, model);
+  llmProvider = createLLMProvider(provider, apiKey, model, bedrockCredentials);
   return llmProvider;
 }
 

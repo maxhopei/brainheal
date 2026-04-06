@@ -2,6 +2,7 @@
   "workspace": [
     "./frontend",
     "./worker",
+    "./supabase/functions/_ingestion",
     "./supabase/functions/_shared",
     "./supabase/functions/ingest",
     "./supabase/functions/stripe-webhook"

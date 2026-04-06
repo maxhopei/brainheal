@@ -11,9 +11,8 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { LLMCardItem, LLMCardOutput } from '@brainheal/shared';
-import type { LLMProvider } from './llm.ts';
-import { fetchArticle } from './fetcher.ts';
-import { checkDailyBudget } from './budget.ts';
+import type { LLMProvider } from '@brainheal/ingestion';
+import { fetchArticle, checkDailyBudget } from '@brainheal/ingestion';
 
 const MAX_RETRIES = 2;
 
