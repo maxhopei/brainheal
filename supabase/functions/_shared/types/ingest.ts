@@ -11,15 +11,3 @@ export type LLMCardOutput = {
   title: string;
   cards: LLMCardItem[];
 };
-
-// Ingest request body
-export type IngestRequest = {
-  type: InputType;
-  value: string;
-};
-
-// Ingest response body
-export type IngestResponse = {
-  queue_item_id: string;
-  feed_item_id: string;
-};

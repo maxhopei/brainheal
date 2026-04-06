@@ -71,11 +71,6 @@ function mockSupabase(config: {
   }
 }
 
-const accountant = new Accountant({
-  free: 1.00,
-  paid: 10.00,
-})
-
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -86,7 +81,8 @@ Deno.test('checkDailyBudget - allowed when no costs this month (free tier)', asy
     monthlyRecords: [],
     todayRecords: [],
   })
-  const result = await accountant.checkDailyBudget(supabase, 'user-1')
+  const accountant = new Accountant(supabase, { free: 1.00, paid: 10.00 })
+  const result = await accountant.checkDailyBudget('user-1')
   assertEquals(result.allowed, true)
 })
 
@@ -96,7 +92,8 @@ Deno.test('checkDailyBudget - allowed when no costs today but some this month (f
     monthlyRecords: [{ cost_usd: 0.10 }],
     todayRecords: [],
   })
-  const result = await accountant.checkDailyBudget(supabase, 'user-1')
+  const accountant = new Accountant(supabase, { free: 1.00, paid: 10.00 })
+  const result = await accountant.checkDailyBudget('user-1')
   assertEquals(result.allowed, true)
 })
 
@@ -107,7 +104,8 @@ Deno.test('checkDailyBudget - not allowed when monthly budget exceeded (free tie
     monthlyRecords: [{ cost_usd: 0.75 }, { cost_usd: 0.75 }],
     todayRecords: [],
   })
-  const result = await accountant.checkDailyBudget(supabase, 'user-1')
+  const accountant = new Accountant(supabase, { free: 1.00, paid: 10.00 })
+  const result = await accountant.checkDailyBudget('user-1')
   assertEquals(result.allowed, false)
 })
 
@@ -118,7 +116,8 @@ Deno.test('checkDailyBudget - allowed for paid tier with plenty of budget remain
     monthlyRecords: [{ cost_usd: 2.00 }],
     todayRecords: [{ cost_usd: 0.10 }],
   })
-  const result = await accountant.checkDailyBudget(supabase, 'user-1')
+  const accountant = new Accountant(supabase, { free: 1.00, paid: 10.00 })
+  const result = await accountant.checkDailyBudget('user-1')
   assertEquals(result.allowed, true)
 })
 
@@ -128,7 +127,8 @@ Deno.test('checkDailyBudget - result includes expected fields', async () => {
     monthlyRecords: [{ cost_usd: 1.00 }],
     todayRecords: [{ cost_usd: 0.05 }],
   })
-  const result = await accountant.checkDailyBudget(supabase, 'user-1')
+  const accountant = new Accountant(supabase, { free: 1.00, paid: 10.00 })
+  const result = await accountant.checkDailyBudget('user-1')
   assertEquals(typeof result.allowed, 'boolean')
   assertEquals(typeof result.dailyLimit, 'number')
   assertEquals(typeof result.todaySpend, 'number')
@@ -145,8 +145,9 @@ Deno.test('checkDailyBudget - throws when profile cannot be read', async () => {
     monthlyRecords: [],
     todayRecords: [],
   })
+  const accountant = new Accountant(supabase, { free: 1.00, paid: 10.00 })
   await assertRejects(
-    () => accountant.checkDailyBudget(supabase, 'user-1'),
+    () => accountant.checkDailyBudget('user-1'),
     Error,
     'Failed to fetch profile',
   )
@@ -158,8 +159,9 @@ Deno.test('checkDailyBudget - throws when monthly cost query fails', async () =>
     monthlyError: { message: 'Database error' },
     todayRecords: [],
   })
+  const accountant = new Accountant(supabase, { free: 1.00, paid: 10.00 })
   await assertRejects(
-    () => accountant.checkDailyBudget(supabase, 'user-1'),
+    () => accountant.checkDailyBudget('user-1'),
     Error,
     'Failed to fetch monthly costs',
   )
@@ -171,8 +173,9 @@ Deno.test('checkDailyBudget - throws when today cost query fails', async () => {
     monthlyRecords: [],
     todayError: { message: 'Database error' },
   })
+  const accountant = new Accountant(supabase, { free: 1.00, paid: 10.00 })
   await assertRejects(
-    () => accountant.checkDailyBudget(supabase, 'user-1'),
+    () => accountant.checkDailyBudget('user-1'),
     Error,
     "Failed to fetch today's costs",
   )

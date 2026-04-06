@@ -3,15 +3,18 @@
   "version": "0.1.0",
   "exports": "./index.ts",
   "imports": {
-    "@brainheal/shared": "../_shared/mod.ts",
     "@brainheal/ingestion": "../_ingestion/mod.ts",
+    "@brainheal/logging": "../_logging/mod.ts",
+    "@brainheal/shared": "../_shared/mod.ts",
+    "@brainheal/storage": "../_storage/mod.ts",
     "@supabase/supabase-js": "npm:@supabase/supabase-js@^2",
     "hono": "npm:hono@^4",
-    "hono/": "npm:hono@^4/",
+    "hono/validator": "npm:hono@^4/validator",
     "hono/cors": "npm:hono@^4/cors",
     "@mozilla/readability": "npm:@mozilla/readability@^0.5",
     "linkedom": "npm:linkedom@^0.18",
     "@std/assert": "jsr:@std/assert@^1",
+    "winston": "npm:winston@^3.19.0",
     "zod": "npm:zod@^4.3.6"
   }
 }

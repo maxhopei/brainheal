@@ -24,15 +24,15 @@ export type TieredBudget = {
 }
 
 export class Accountant {
-  constructor(private readonly tieredBudget: TieredBudget) {
+  constructor(
+    private readonly supabase: SupabaseClient,
+    private readonly tieredBudget: TieredBudget,
+  ) {
   }
 
-  public async checkDailyBudget(
-    supabase: SupabaseClient,
-    userId: string,
-  ): Promise<BudgetCheckResult> {
+  public async checkDailyBudget(userId: string): Promise<BudgetCheckResult> {
     // 1. Get billing tier
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile, error: profileError } = await this.supabase
       .from('profiles')
       .select('billing_tier')
       .eq('id', userId)
@@ -49,7 +49,7 @@ export class Accountant {
 
     // 2. Get monthly spend
     const monthStart = this.startOfCurrentMonthUtc()
-    const { data: monthlyRecords, error: monthlyError } = await supabase
+    const { data: monthlyRecords, error: monthlyError } = await this.supabase
       .from('cost_records')
       .select('cost_usd')
       .eq('user_id', userId)
@@ -73,7 +73,7 @@ export class Accountant {
 
     // 4. Get today's spend
     const todayStart = this.startOfTodayUtc()
-    const { data: todayRecords, error: todayError } = await supabase
+    const { data: todayRecords, error: todayError } = await this.supabase
       .from('cost_records')
       .select('cost_usd')
       .eq('user_id', userId)
