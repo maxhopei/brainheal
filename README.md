@@ -38,8 +38,8 @@ Copy and fill in `.env` files for each service (secrets are pre-filled for local
 
 ```bash
 cp frontend/.env.example frontend/.env
-cp worker/.env.example worker/.env   # add LLM_API_KEY
-cp supabase/functions/ingest/.env.example supabase/functions/ingest/.env
+cp worker/.env.example worker/.env   # add LLM_API_KEY or AWS credentials
+cp supabase/functions/ingest/.env.example supabase/functions/ingest/.env    # add LLM_API_KEY or AWS credentials
 cp supabase/functions/stripe-webhook/.env.example supabase/functions/stripe-webhook/.env
 ```
 

@@ -13,7 +13,6 @@ Every workspace that can be **run** (has a `dev` or `start` task, or is deployed
 - All values with known local defaults (local Supabase URL, well-known dev keys) must be **pre-filled**.
 - Only values that genuinely differ per developer (e.g. `LLM_API_KEY`, `STRIPE_WEBHOOK_SECRET`) may be left as commented-out placeholders.
 - Never commit `.env` files — they are gitignored. Only `.env.example` is committed.
-- The local Supabase `service_role` key and `anon` key are **not secrets** — they are identical on every developer's machine and must appear pre-filled in `.env.example`.
 
 ## Local Supabase defaults
 
@@ -24,7 +23,7 @@ SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 ```
 
-## Template by workspace
+## Examples by workspace
 
 **`frontend/.env.example`**
 ```env
