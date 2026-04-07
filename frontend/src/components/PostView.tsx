@@ -1,6 +1,6 @@
-import { useState, useCallback, useRef } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useSwipeable } from 'react-swipeable'
-import type { FeedItem, Card } from '@brainheal/storage'
+import type { Card, FeedItem } from '@brainheal/storage'
 import { supabase } from '@/lib/supabase'
 import { CardView } from './CardView.tsx'
 import { SaveButton } from './SaveButton.tsx'
@@ -12,8 +12,8 @@ type PostViewProps = {
   onSnooze: (feedItemId: string) => void
 }
 
-const SWIPE_THRESHOLD = 80
-const ACTION_THRESHOLD = 120
+const SNAP_THRESHOLD = 0.5
+const ACTION_THRESHOLD = 0.4
 
 /**
  * Renders a single post as a horizontally swipeable card carousel.
@@ -45,13 +45,27 @@ export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
   currentCardRef.current = currentCard
   isAnimatingRef.current = isAnimating
 
-  const animateToCard = useCallback((targetIndex: number) => {
-    console.log('Called animateToCard with targetIndex:', targetIndex)
+  const animateToCard = useCallback((targetIndex: number, direction: 'left' | 'right') => {
+    const containerWidth = containerRef.current?.offsetWidth ?? 300
+    isAnimatingRef.current = true
+    setIsAnimating(true)
+
+    const targetOffset = direction === 'left' ? -containerWidth : containerWidth
+    setSwipeOffset(targetOffset)
+
+    setTimeout(() => {
+      setIsAnimating(false)
+      currentCardRef.current = targetIndex
+      setCurrentCard(targetIndex)
+      setSwipeOffset(0)
+      isAnimatingRef.current = false
+    }, 300)
+  }, [])
+
+  const snapBack = useCallback(() => {
     isAnimatingRef.current = true
     setIsAnimating(true)
     setSwipeOffset(0)
-    currentCardRef.current = targetIndex
-    setCurrentCard(targetIndex)
     setTimeout(() => {
       isAnimatingRef.current = false
       setIsAnimating(false)
@@ -100,53 +114,43 @@ export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
 
   const swipeHandlers = useSwipeable({
     onSwiping: (e) => {
-      console.log('Swiping')
       if (isAnimatingRef.current) return
       setSwipeOffset(e.deltaX)
     },
-    onSwipedLeft: (e) => {
-      console.log('Swiping left')
+    onSwiped: (e) => {
       if (isAnimatingRef.current) return
-      const delta = Math.abs(e.deltaX)
-      const card = currentCardRef.current
-      const isLast = card === totalCards - 1
 
-      if (delta > SWIPE_THRESHOLD) {
-        if (isLast && delta > ACTION_THRESHOLD) {
-          handleMarkRead()
-        } else if (card < totalCards - 1) {
-          animateToCard(card + 1)
-        } else {
-          setSwipeOffset(0)
-        }
-      } else {
-        setSwipeOffset(0)
-      }
-    },
-    onSwipedRight: (e) => {
-      console.log('Swiping right')
-      if (isAnimatingRef.current) return
-      const delta = Math.abs(e.deltaX)
+      const containerWidth = containerRef.current?.offsetWidth ?? 300
+      const deltaX = e.deltaX
+      const swipeRatio = Math.abs(deltaX) / containerWidth
+      const swipedLeft = deltaX < 0
+      const swipedRight = deltaX > 0
+
       const card = currentCardRef.current
       const isFirst = card === 0
+      const isLast = card === totalCards - 1
 
-      if (delta > SWIPE_THRESHOLD) {
-        if (isFirst && delta > ACTION_THRESHOLD) {
-          handleSnooze()
-        } else if (card > 0) {
-          animateToCard(card - 1)
-        } else {
-          setSwipeOffset(0)
+      if (isLast && swipedLeft && swipeRatio > ACTION_THRESHOLD) {
+        handleMarkRead()
+        return
+      }
+      if (isFirst && swipedRight && swipeRatio > ACTION_THRESHOLD) {
+        handleSnooze()
+        return
+      }
+
+      if (swipeRatio > SNAP_THRESHOLD) {
+        if (swipedLeft && card < totalCards - 1) {
+          animateToCard(card + 1, 'left')
+          return
         }
-      } else {
-        setSwipeOffset(0)
+        if (swipedRight && card > 0) {
+          animateToCard(card - 1, 'right')
+          return
+        }
       }
-    },
-    onSwiped: (e) => {
-      console.log('Swiped')
-      if (!isAnimatingRef.current && Math.abs(e.deltaX) <= SWIPE_THRESHOLD) {
-        setSwipeOffset(0)
-      }
+
+      snapBack()
     },
     preventScrollOnSwipe: true,
     trackTouch: true,
@@ -160,16 +164,18 @@ export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
 
   const sourceLabel = post.source_url
     ? (() => {
-        try {
-          return new URL(post.source_url).hostname.replace(/^www\./, '')
-        } catch {
-          return post.source_url
-        }
-      })()
+      try {
+        return new URL(post.source_url).hostname.replace(/^www\./, '')
+      } catch {
+        return post.source_url
+      }
+    })()
     : null
 
-  const snoozeReveal = canSnooze ? Math.min(swipeOffset / ACTION_THRESHOLD, 1) : 0
-  const archiveReveal = canArchive ? Math.min(Math.abs(swipeOffset) / ACTION_THRESHOLD, 1) : 0
+  const containerWidth = containerRef.current?.offsetWidth ?? 300
+  const actionThresholdPx = containerWidth * ACTION_THRESHOLD
+  const snoozeReveal = canSnooze ? Math.min(swipeOffset / actionThresholdPx, 1) : 0
+  const archiveReveal = canArchive ? Math.min(Math.abs(swipeOffset) / actionThresholdPx, 1) : 0
 
   return (
     <article className={styles.postView} aria-label={`Post: ${post.title}`}>
@@ -184,16 +190,16 @@ export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
       >
         {/* Position indicator dots */}
         {totalCards > 1 && (
-          <div className={styles.dots} role="tablist" aria-label="Card navigation">
+          <div className={styles.dots} role='tablist' aria-label='Card navigation'>
             {cards.map((_, i) => (
               <button
-                type="button"
+                type='button'
                 key={i}
-                role="tab"
+                role='tab'
                 aria-selected={i === currentCard}
                 aria-label={`Card ${i + 1} of ${totalCards}`}
                 className={`${styles.dot} ${i === currentCard ? styles.dotActive : ''}`}
-                onClick={() => animateToCard(i)}
+                onClick={() => animateToCard(i, i > currentCard ? 'left' : 'right')}
               />
             ))}
           </div>
@@ -208,7 +214,7 @@ export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
               opacity: snoozeReveal,
               background: `rgba(34, 197, 94, ${0.15 + snoozeReveal * 0.1})`,
             }}
-            aria-hidden="true"
+            aria-hidden='true'
           >
             <span className={styles.actionIcon}>↩</span>
             <span className={styles.actionText}>Snooze</span>
@@ -222,7 +228,7 @@ export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
               opacity: archiveReveal,
               background: `rgba(59, 130, 246, ${0.15 + archiveReveal * 0.1})`,
             }}
-            aria-hidden="true"
+            aria-hidden='true'
           >
             <span className={styles.actionIcon}>✓</span>
             <span className={styles.actionText}>Archive</span>
@@ -268,8 +274,8 @@ export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
             {sourceLabel && (
               <a
                 href={post.source_url ?? '#'}
-                target="_blank"
-                rel="noopener noreferrer"
+                target='_blank'
+                rel='noopener noreferrer'
                 className={styles.sourceLink}
                 aria-label={`Open source: ${sourceLabel}`}
               >
