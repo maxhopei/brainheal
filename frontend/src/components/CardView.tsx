@@ -1,10 +1,12 @@
-import ReactMarkdown from 'react-markdown';
-import type { Card } from '@brainheal/storage';
-import styles from './CardView.module.css';
+import ReactMarkdown from 'react-markdown'
+import type { Card } from '@brainheal/storage'
+import styles from './CardView.module.css'
 
 type CardViewProps = {
-  card: Card;
-};
+  card: Card
+  postTitle?: string
+  isFirstCard?: boolean
+}
 
 /**
  * Renders a single card based on its content_type.
@@ -12,10 +14,13 @@ type CardViewProps = {
  * - key_points: Bulleted list
  * - quote: Styled blockquote with attribution
  * - image: Image with optional caption
+ *
+ * On the first card, the post title is displayed prominently at the top.
  */
-export function CardView({ card }: CardViewProps) {
+export function CardView({ card, postTitle, isFirstCard }: CardViewProps) {
   return (
     <div className={styles.card}>
+      {isFirstCard && postTitle && <h2 className={styles.cardTitle}>{postTitle}</h2>}
       <div className={styles.content}>
         {card.content_type === 'text' && (
           <div className={styles.textContent}>
