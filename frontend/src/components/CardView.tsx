@@ -1,5 +1,5 @@
 import ReactMarkdown from 'react-markdown';
-import type { Card } from '@brainheal/shared';
+import type { Card } from '@brainheal/storage';
 import styles from './CardView.module.css';
 
 type CardViewProps = {

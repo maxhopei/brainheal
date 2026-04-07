@@ -1,4 +1,4 @@
-import type { FeedItem } from '@brainheal/shared';
+import type { FeedItem } from '@brainheal/storage';
 import styles from './SkeletonCard.module.css';
 
 type SkeletonCardProps = {

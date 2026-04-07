@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import type { QueueItem } from '@brainheal/shared';
+import type { QueueItem } from '@brainheal/storage';
 import styles from './QueuePage.module.css';
 
 const POLL_INTERVAL_MS = 5000;

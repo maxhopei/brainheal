@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useSwipeable } from 'react-swipeable';
-import type { FeedItem, Card } from '@brainheal/shared';
+import type { FeedItem, Card } from '@brainheal/storage';
 import { supabase } from '@/lib/supabase';
 import { CardView } from './CardView.tsx';
 import { SaveButton } from './SaveButton.tsx';

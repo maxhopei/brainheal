@@ -24,6 +24,7 @@
     "./worker",
     "./supabase/functions/*"
   ],
+  "nodeModulesDir": "auto",
   "imports": {
     "@supabase/supabase-js": "npm:@supabase/supabase-js@^2",
     "zod": "npm:zod@^4.3.6"

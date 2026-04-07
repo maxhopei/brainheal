@@ -1,11 +1,11 @@
-import { type useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useFeed } from '@/hooks/useFeed';
 import { PostView } from '@/components/PostView';
 import { SkeletonCard } from '@/components/SkeletonCard';
 import styles from './FeedPage.module.css';
-import type { FeedItem } from '@brainheal/shared';
+import type { FeedItem } from '@brainheal/storage';
 
 /**
  * Main feed screen.

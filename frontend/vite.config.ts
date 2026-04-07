@@ -1,11 +1,13 @@
 // @ts-nocheck - vite config, runs via npm:vite which has its own resolution
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import { VitePWA } from 'vite-plugin-pwa';
-import { fileURLToPath, URL } from 'node:url';
+import { defineConfig } from 'vite'
+import deno from '@deno/vite-plugin'
+import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
+import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
   plugins: [
+    deno(),
     react(),
     VitePWA({
       registerType: 'autoUpdate',
@@ -38,12 +40,12 @@ export default defineConfig({
   optimizeDeps: {
     // Ensure react/jsx-runtime is pre-bundled by Vite
     include: [
+      '@supabase/supabase-js',
       'react',
       'react/jsx-runtime',
       'react-dom',
       'react-dom/client',
       'react-router-dom',
-      '@supabase/supabase-js',
       'react-markdown',
       'react-swipeable',
     ],
@@ -56,4 +58,4 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: true,
   },
-});
+})

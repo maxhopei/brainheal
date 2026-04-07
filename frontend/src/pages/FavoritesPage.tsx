@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { FavoriteGroup, Favorite } from '@brainheal/shared';
+import type { FavoriteGroup, Favorite } from '@brainheal/storage';
 import styles from './FavoritesPage.module.css';
 
 type GroupWithFavorites = FavoriteGroup & {

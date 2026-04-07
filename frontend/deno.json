@@ -6,11 +6,15 @@
     "preview": "deno run --allow-all npm:vite preview"
   },
   "imports": {
+    "@/lib/supabase": "./src/lib/supabase.ts",
     "@deno/vite-plugin": "npm:@deno/vite-plugin@^1.0.6",
+    "@types/react": "npm:@types/react@^18",
     "react": "npm:react@^18",
     "react/": "npm:react@^18/",
-    "react-dom": "npm:react-dom@^18",
+    "react/jsx-runtime": "npm:react@^18/jsx-runtime.js",
+    "react-dom": "npm:react-dom@^18.3.1",
     "react-dom/": "npm:react-dom@^18/",
+    "react-dom/client": "npm:react-dom@^18/client",
     "react-router-dom": "npm:react-router-dom@^6",
     "react-markdown": "npm:react-markdown@^9",
     "react-swipeable": "npm:react-swipeable@^7",
@@ -26,7 +30,6 @@
       "DOM.Iterable",
       "ESNext"
     ],
-    "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
     "strict": true,

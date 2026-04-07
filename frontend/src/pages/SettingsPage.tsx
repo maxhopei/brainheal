@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
-import type { Profile } from '@brainheal/shared';
+import type { Profile } from '@brainheal/storage';
 import styles from './SettingsPage.module.css';
 
 /**

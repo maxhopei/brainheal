@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-import type { FeedItem } from '@brainheal/shared';
+import type { FeedItem } from '@brainheal/storage';
 
 const PAGE_SIZE = 20;
 

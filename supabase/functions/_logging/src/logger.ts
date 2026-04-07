@@ -98,7 +98,7 @@ export class Logger {
  * @internal Only for testing purposes
  */
 export const detectLogLevel = (): LogLevel => {
-  let level = Deno.env.get('LOG_LEVEL')
+  let level = Deno?.env.get('LOG_LEVEL')
   if (level === undefined || level === '') return DEFAULT_LOG_LEVEL
 
   // Tolerating "warn"
@@ -117,7 +117,7 @@ export const detectLogLevel = (): LogLevel => {
  * @internal Only for testing purposes
  */
 export const detectLogFormat = (): LogFormat => {
-  const format = Deno.env.get('LOG_FORMAT')
+  const format = Deno?.env.get('LOG_FORMAT')
   if (format === undefined || format === '') return DEFAULT_LOG_FORMAT
 
   if (!(format in LogFormatEnum)) {
