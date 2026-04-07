@@ -28,7 +28,7 @@ export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
   const [currentCard, setCurrentCard] = useState<number>(0)
   const [swipeOffset, setSwipeOffset] = useState<number>(0)
   const [isAnimating, setIsAnimating] = useState<boolean>(false)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement | null>(null)
   const isAnimatingRef = useRef<boolean>(false)
   const currentCardRef = useRef<number>(0)
 
@@ -174,7 +174,14 @@ export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
   return (
     <article className={styles.postView} aria-label={`Post: ${post.title}`}>
       {/* Card carousel */}
-      <div className={styles.cardCarousel} {...swipeHandlers} ref={containerRef}>
+      <div
+        className={styles.cardCarousel}
+        {...swipeHandlers}
+        ref={(el) => {
+          containerRef.current = el
+          swipeHandlers.ref(el as unknown as HTMLElement)
+        }}
+      >
         {/* Position indicator dots */}
         {totalCards > 1 && (
           <div className={styles.dots} role="tablist" aria-label="Card navigation">
