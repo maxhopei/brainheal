@@ -1,4 +1,5 @@
 import { z } from 'zod/v4'
+import { Logger } from '@brainheal/logging'
 
 const configSchema = z.object({
   SUPABASE_URL: z.string()
@@ -73,29 +74,6 @@ const configSchema = z.object({
 
 const env = configSchema.parse(Deno.env.toObject())
 
-console.log('Config', {
-  supabase: {
-    url: env.SUPABASE_URL,
-    serviceRoleKey: '[redacted]',
-  },
-  healthPort: env.HEALTH_PORT,
-  pollIntervalMs: env.POLL_INTERVAL_MS,
-  billing: {
-    freeMonthlyBudgetUsd: env.FREE_MONTHLY_BUDGET_USD,
-    paidMonthlyBudgetUsd: env.PAID_MONTHLY_BUDGET_USD,
-  },
-  llm: {
-    provider: env.LLM_PROVIDER,
-    model: env.LLM_MODEL,
-    apiKey: '[redacted]',
-    aws: {
-      accessKeyId: env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: '[redacted]',
-      region: env.AWS_REGION,
-    },
-  },
-})
-
 export const config = {
   supabase: {
     url: env.SUPABASE_URL,
@@ -118,3 +96,24 @@ export const config = {
     },
   },
 }
+
+Logger
+  .create('Worker Config', { level: 'info' })
+  .withProps({
+    config: {
+      ...config,
+      supabase: {
+        ...config.supabase,
+        serviceRoleKey: '[redacted]',
+      },
+      llm: {
+        ...config.llm,
+        apiKey: '[redacted]',
+        aws: {
+          ...config.llm.aws,
+          secretAccessKey: '[redacted]',
+        },
+      },
+    },
+  })
+  .info('Configuration loaded')

@@ -16,59 +16,23 @@ All specs live under `specs/`. See [`specs/README.md`](specs/README.md) for the 
 
 ## Repository Layout
 
+The high-level layout is following:
+
 ```
 brainheal/
 ├── deno.json                   # workspace root — shared deps + root tasks
 ├── deno.lock
 ├── compose.yaml                # Docker Compose: worker + frontend
 ├── README.md
-├── packages/
-│   └── shared/                 # @brainheal/shared — types, constants, utilities
-│       ├── mod.ts              # package entry point (re-exports from src/)
-│       ├── src/
-│       │   ├── types.ts
-│       │   └── types_test.ts
-│       └── deno.json
 ├── frontend/                   # @brainheal/frontend — React + Vite PWA (Deno runtime)
-│   ├── src/
-│   │   ├── components/
-│   │   ├── hooks/
-│   │   ├── pages/
-│   │   ├── lib/                # Supabase client, helpers
-│   │   └── types/
-│   ├── public/
-│   ├── index.html
-│   ├── vite.config.ts
-│   ├── Dockerfile              # multi-stage: Deno build → nginx serve
-│   ├── nginx.conf
-│   └── deno.json
 ├── supabase/
 │   ├── functions/              # Edge Functions — each is a workspace member
-│   │   ├── ingest/             # @brainheal/fn-ingest
-│   │   │   ├── index.ts        # thin shim: imports app from src/, calls Deno.serve
-│   │   │   └── src/
-│   │   │       ├── index.ts    # Hono app + all route logic
-│   │   │       └── index_test.ts
-│   │   └── stripe-webhook/     # @brainheal/fn-stripe-webhook
-│   │       ├── index.ts        # thin shim
-│   │       └── src/
-│   │           └── index.ts    # Hono app + all route logic
 │   └── migrations/             # SQL migration files
 ├── worker/                     # @brainheal/worker — Fly.io processing worker
-│   ├── src/
-│   │   ├── main.ts
-│   │   ├── processor.ts
-│   │   ├── llm.ts
-│   │   ├── fetcher.ts
-│   │   ├── budget.ts
-│   │   ├── budget_test.ts
-│   │   ├── fetcher_test.ts
-│   │   └── llm_test.ts
-│   ├── Dockerfile
-│   ├── fly.toml
-│   └── deno.json
 └── extension/                  # @brainheal/extension — Chrome MV3 (Phase 2, not yet implemented)
 ```
+
+For the detailed structure see: `.cursor/rules/repo-structure.mdc`
 
 ### `src/` Convention
 

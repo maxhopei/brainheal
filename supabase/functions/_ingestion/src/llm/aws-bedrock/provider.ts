@@ -1,5 +1,4 @@
-import type { LLMCardOutput } from '@brainheal/shared';
-import type { LLMProvider, LLMSummarizeResult } from '../llm-provider.ts';
+import type { LLMCardOutput, LLMProvider, LLMSummarizeResult } from '../provider.ts';
 import { RESEARCH_SYSTEM_PROMPT, STRICT_RETRY_SUFFIX, SYSTEM_PROMPT } from '../prompts.ts';
 import { signRequest } from './sigv4.ts';
 import { parseAndValidateLLMOutput } from '../parse.ts';

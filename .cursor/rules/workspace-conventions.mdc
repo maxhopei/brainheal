@@ -13,12 +13,6 @@ brainheal/
 ├── deno.lock
 ├── compose.yaml                # Docker Compose: worker + frontend
 ├── README.md
-├── packages/
-│   └── shared/                 # @brainheal/shared
-│       ├── mod.ts              # package entry point — re-exports from src/
-│       ├── src/
-│       │   └── types.ts
-│       └── deno.json
 ├── frontend/                   # @brainheal/frontend
 │   ├── src/                    # all TS/TSX source here
 │   ├── Dockerfile
@@ -28,6 +22,10 @@ brainheal/
 │   └── deno.json
 ├── supabase/
 │   ├── functions/
+│   │   ├── _ingestion/         ← @brainheal/ingestion  (shared ingestion library)
+│   │   │   └── deno.json
+│   │   ├── ingest/             ← @brainheal/fn-ingest  (Edge Function)
+│   │   │   └── deno.json
 │   │   ├── ingest/             # @brainheal/fn-ingest
 │   │   │   ├── index.ts        # thin shim only — see src/ convention below
 │   │   │   └── src/

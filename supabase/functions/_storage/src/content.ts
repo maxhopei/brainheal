@@ -1,6 +1,64 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { Logger } from '@brainheal/logging'
 
+import type { QueueItem } from './queue.ts'
+
+export type CardType = 'text' | 'image' | 'key_points' | 'quote'
+
+export type PostStatus = 'processing' | 'ready' | 'failed'
+
+export type FeedItemState = 'unread' | 'read'
+
+export type SourceType = 'self' | 'shared' | 'suggested'
+
+/**
+ * Feed item (matches feed_items table, with optional nested data)
+ */
+export type FeedItem = {
+  id: string
+  user_id: string
+  post_id: string | null
+  queue_item_id: string
+  position: number
+  state: FeedItemState
+  source_type: SourceType
+  shared_by_user_id: string | null
+  shared_message: string | null
+  created_at: string
+  read_at: string | null
+  post?: Post & { cards: Card[] }
+  queue_item?: QueueItem
+}
+
+/**
+ * Post (matches posts table)
+ */
+export type Post = {
+  id: string
+  user_id: string
+  source_url: string | null
+  source_text: string | null
+  title: string
+  status: PostStatus
+  error_message: string | null
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * Card (matches cards table)
+ */
+export type Card = {
+  id: string
+  post_id: string
+  position: number
+  content_type: CardType
+  text_content: string | null
+  media_url: string | null
+  media_caption: string | null
+  created_at: string
+}
+
 export type AddPostProps = {
   title: string
   source: {
@@ -9,18 +67,14 @@ export type AddPostProps = {
   }
 }
 
-type CardRow = {
-  post_id: string
-  position: number
-  content_type: string
-  text_content: string | null
-  media_url: string | null
-  media_caption: string | null
-}
+type CardInsertData = Pick<
+  Card,
+  'post_id' | 'position' | 'content_type' | 'text_content' | 'media_url' | 'media_caption'
+>
 
 export type AddPostCardProps = {
   position: number
-  contentType: string
+  contentType: CardType
   textContent: string | null
   mediaUrl: string | null
   mediaCaption: string | null
@@ -66,7 +120,7 @@ export class ContentRepository {
       throw new Error('LLM returned no valid cards for this content')
     }
 
-    const cardRows = cards.map<CardRow>((card) => ({
+    const cardRows = cards.map<CardInsertData>((card) => ({
       post_id: postId,
       position: card.position,
       content_type: card.contentType,

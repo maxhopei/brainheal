@@ -25,10 +25,9 @@ import { cors } from 'hono/cors'
 import { validator } from 'hono/validator'
 
 import { Logger } from '@brainheal/logging'
-import { Accountant, createLLMProvider, type LLMProvider } from '@brainheal/ingestion'
-import { BillingRepository, ContentRepository, IngestionQueue } from '@brainheal/storage'
+import { Accountant, createLLMProvider, type LLMProvider, Processor } from '@brainheal/ingestion'
+import { BillingRepository, ContentRepository, IngestionQueue, ProfileRepository } from '@brainheal/storage'
 
-import { Processor } from './processor.ts'
 import { config } from './config.ts'
 import z from 'zod/v4'
 
@@ -46,10 +45,14 @@ let accountant: Accountant | null = null
 let processor: Processor | null = null
 
 if (config.billing) {
-  accountant = new Accountant(adminSupabaseClient, {
-    free: config.billing.freeMonthlyBudgetUsd,
-    paid: config.billing.paidMonthlyBudgetUsd,
-  })
+  accountant = new Accountant(
+    new ProfileRepository(adminSupabaseClient),
+    new BillingRepository(adminSupabaseClient),
+    {
+      free: config.billing.freeMonthlyBudgetUsd,
+      paid: config.billing.paidMonthlyBudgetUsd,
+    },
+  )
 }
 
 if (config.llm) {

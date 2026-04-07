@@ -1,13 +1,13 @@
 /**
  * Content processing logic for immediate mode.
  *
- * Adapted from worker/src/processor.ts.
  * Handles the full processing pipeline: fetch, LLM, and database writes.
  */
 import { Logger } from '@brainheal/logging'
-import type { LLMCardItem, LLMCardOutput } from '@brainheal/shared'
-import { fetchArticle, type LLMProvider } from '@brainheal/ingestion'
 import type { AddPostCardProps, AddPostProps, BillingRepository, ContentRepository } from '@brainheal/storage'
+
+import { fetchArticle } from './fetcher.ts'
+import type { LLMCardItem, LLMCardOutput, LLMProvider } from './llm/provider.ts'
 
 export class Processor {
   private readonly logger = Logger.create('Ingestion Processor')

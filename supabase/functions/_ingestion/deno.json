@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "exports": "./mod.ts",
   "imports": {
-    "@brainheal/shared": "../_shared/mod.ts",
     "@supabase/supabase-js": "npm:@supabase/supabase-js@^2",
     "@mozilla/readability": "npm:@mozilla/readability@^0.5",
     "linkedom": "npm:linkedom@^0.18",

@@ -27,8 +27,6 @@ brainheal/                      ← workspace root (deno.json here)
 │   └── functions/
 │       ├── _ingestion/         ← @brainheal/ingestion  (shared ingestion library)
 │       │   └── deno.json
-│       ├── _shared/            ← @brainheal/shared  (shared types, constants, utilities)
-│       │   └── deno.json
 │       ├── ingest/             ← @brainheal/fn-ingest  (Edge Function)
 │       │   └── deno.json
 │       └── stripe-webhook/     ← @brainheal/fn-stripe-webhook
@@ -76,9 +74,9 @@ Every workspace member **must** have:
 - `"exports"`: entry point(s)
 
 ```jsonc
-// supabase/functions/_shared/deno.json — example
+// supabase/functions/_logging/deno.json — example
 {
-  "name": "@brainheal/shared",
+  "name": "@brainheal/logging",
   "version": "0.1.0",
   "exports": "./mod.ts"
 }

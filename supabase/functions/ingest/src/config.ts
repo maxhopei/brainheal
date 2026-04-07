@@ -1,4 +1,5 @@
 import { z } from 'zod/v4'
+import { Logger } from '@brainheal/logging'
 
 const configSchema = z.intersection(
   z.object({
@@ -84,33 +85,6 @@ const configSchema = z.intersection(
 
 const env = configSchema.parse(Deno.env.toObject())
 
-console.log('Config', {
-  supabase: {
-    url: env.SUPABASE_URL,
-    publishableKey: env.PUBLISHABLE_DEFAULT_KEY ?? env.SUPABASE_ANON_KEY,
-    serviceRoleKey: '[redacted]',
-  },
-  ingestionMode: env.INGESTION_MODE,
-  ...(env.INGESTION_MODE === 'immediate' && {
-    billing: {
-      freeMonthlyBudgetUsd: env.FREE_MONTHLY_BUDGET_USD,
-      paidMonthlyBudgetUsd: env.PAID_MONTHLY_BUDGET_USD,
-    },
-  }),
-  ...(env.INGESTION_MODE === 'immediate' && {
-    llm: {
-      provider: env.LLM_PROVIDER,
-      model: env.LLM_MODEL,
-      apiKey: '[redacted]',
-      aws: {
-        accessKeyId: env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: '[redacted]',
-        region: env.AWS_REGION,
-      },
-    },
-  }),
-})
-
 export const config = {
   supabase: {
     url: env.SUPABASE_URL,
@@ -137,3 +111,27 @@ export const config = {
     },
   }),
 }
+
+Logger
+  .create('Worker Config', { level: 'info' })
+  .withProps({
+    config: {
+      ...config,
+      supabase: {
+        ...config.supabase,
+        publishableKey: '[redacted]',
+        serviceRoleKey: '[redacted]',
+      },
+      ...(config.llm && {
+        llm: {
+          ...config.llm,
+          apiKey: '[redacted]',
+          aws: {
+            ...config.llm.aws,
+            secretAccessKey: '[redacted]',
+          },
+        },
+      }),
+    },
+  })
+  .info('Configuration loaded')

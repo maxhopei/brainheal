@@ -1,14 +1,39 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { Logger } from '@brainheal/logging'
+
+export type QueueItemStatus = 'pending' | 'processing' | 'completed' | 'failed'
+
+export type InputType = 'url' | 'text'
+
+/**
+ * Queue item (matches queue_items table)
+ */
+export type QueueItem = {
+  id: string
+  user_id: string
+  input_type: InputType
+  input_value: string
+  status: QueueItemStatus
+  error_message: string | null
+  retry_count: number
+  created_at: string
+  started_at: string | null
+  completed_at: string | null
+}
 
 export type AddItemResult = {
   queueItemId: string
   feedItemId: string
 }
 
-export class IngestionQueue {
-  private readonly logger = Logger.create('BillingRepository')
+export type ClaimedItem = {
+  id: string
+  userId: string
+  inputType: InputType
+  inputValue: string
+  retryCount: number
+}
 
+export class IngestionQueue {
   constructor(private readonly supabase: SupabaseClient) {
   }
 
@@ -16,7 +41,7 @@ export class IngestionQueue {
     userId: string,
     inputType: string,
     inputValue: string,
-    initialStatus: 'processing' | 'pending',
+    initialStatus: 'pending' | 'processing',
   ): Promise<AddItemResult> {
     // Insert queue_item
     const { data: queueItem, error: queueError } = await this.supabase
@@ -25,7 +50,7 @@ export class IngestionQueue {
         user_id: userId,
         input_type: inputType,
         input_value: inputValue,
-        status: initialStatus,
+        status: initialStatus satisfies QueueItemStatus,
         retry_count: 0,
         started_at: initialStatus === 'processing' ? new Date().toISOString() : null,
       })
@@ -74,10 +99,55 @@ export class IngestionQueue {
     }
   }
 
+  public async claimNextPendingItem(): Promise<ClaimedItem | null> {
+    // 1. Claim the next pending item using a Postgres RPC to ensure atomicity
+    const { data: claimedRows, error: claimError } = await this.supabase
+      .rpc('claim_next_queue_item')
+
+    if (claimError) {
+      throw new Error('Failed to claim next queue item', { cause: claimError })
+    }
+
+    // SETOF returns an array; empty array means queue is empty.
+    // Normalise: PostgREST may return a plain object for single-row composite return types.
+    const claimedItem = Array.isArray(claimedRows) ? claimedRows[0] : claimedRows
+
+    if (!claimedItem || !claimedItem.id) {
+      return null
+    }
+
+    return {
+      id: claimedItem.id,
+      userId: claimedItem.user_id,
+      inputType: claimedItem.input_type,
+      inputValue: claimedItem.input_value,
+      retryCount: claimedItem.retry_count ?? 0,
+    }
+  }
+
   public async markItemCompleted(queueItemId: string): Promise<void> {
     await this.supabase
       .from('queue_items')
-      .update({ status: 'completed', completed_at: new Date().toISOString() })
+      .update({ status: 'completed' satisfies QueueItemStatus, completed_at: new Date().toISOString() })
+      .eq('id', queueItemId)
+  }
+
+  public async markItemPending(queueItemId: string): Promise<void> {
+    await this.supabase
+      .from('queue_items')
+      .update({ status: 'pending' satisfies QueueItemStatus, started_at: null })
+      .eq('id', queueItemId)
+  }
+
+  public async requeueItem(queueItemId: string, newRetryCount: number, errorMessage: string): Promise<void> {
+    await this.supabase
+      .from('queue_items')
+      .update({
+        status: 'pending' satisfies QueueItemStatus,
+        retry_count: newRetryCount,
+        started_at: null,
+        error_message: errorMessage,
+      })
       .eq('id', queueItemId)
   }
 
@@ -89,7 +159,7 @@ export class IngestionQueue {
     await this.supabase
       .from('queue_items')
       .update({
-        status: 'failed',
+        status: 'failed' satisfies QueueItemStatus,
         error_message: errorMessage,
         completed_at: new Date().toISOString(),
       })
@@ -105,7 +175,7 @@ export class IngestionQueue {
     if (feedItem?.post_id) {
       await this.supabase
         .from('posts')
-        .update({ status: 'failed', error_message: errorMessage })
+        .update({ status: 'failed' satisfies QueueItemStatus, error_message: errorMessage })
         .eq('id', feedItem.post_id)
     }
   }

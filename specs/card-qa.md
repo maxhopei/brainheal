@@ -429,20 +429,20 @@ The Edge Function and the worker both need:
 - **LLM provider abstraction** (`llm.ts`): currently lives in `worker/src/`.
   The Q&A function needs a simpler variant (single chat call, no JSON
   parsing). Options:
-  - Extract common LLM call logic into `@brainheal/shared`.
+  - Extract common LLM call logic into `@brainheal/llm`.
   - Duplicate a thin LLM chat function in the Edge Function (simpler,
     avoids coupling).
 - **Article fetcher** (`fetcher.ts`): needed for re-fetching URL articles.
   Same choice: share or duplicate. The fetcher depends on `@mozilla/readability`
   and `linkedom` — verify these work within Edge Function deployment size
   limits.
-- **Budget check** (`budget.ts`): extract into `@brainheal/shared` or
+- **Budget check** (`budget.ts`): extract into `@brainheal/llm` or
   implement as a Postgres RPC callable from both worker and Edge Function.
 
 Recommended approach: implement budget as a **Postgres RPC** (`check_daily_budget`)
 so both the worker and Edge Function can call `supabase.rpc('check_daily_budget')`
 without duplicating the SQL logic. Move the LLM abstraction and fetcher into
-`@brainheal/shared` as a Phase 2 cleanup — for the initial implementation,
+`@brainheal/llm` as a Phase 2 cleanup — for the initial implementation,
 a focused LLM chat function within the Edge Function is acceptable.
 
 ---

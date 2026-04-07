@@ -1,4 +1,4 @@
-import type { LLMProvider } from './llm-provider.ts'
+import type { LLMProvider } from './provider.ts'
 import { OpenAIProvider } from './openai/provider.ts'
 import { AnthropicProvider } from './anthropic/provider.ts'
 import { BedrockProvider } from './aws-bedrock/provider.ts'

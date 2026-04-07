@@ -5,7 +5,6 @@
   "imports": {
     "@brainheal/ingestion": "../_ingestion/mod.ts",
     "@brainheal/logging": "../_logging/mod.ts",
-    "@brainheal/shared": "../_shared/mod.ts",
     "@brainheal/storage": "../_storage/mod.ts",
     "@supabase/supabase-js": "npm:@supabase/supabase-js@^2",
     "hono": "npm:hono@^4",
