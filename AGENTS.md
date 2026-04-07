@@ -39,7 +39,7 @@ For the detailed structure see: `.cursor/rules/repo-structure.mdc`
 - All TypeScript source lives in a `src/` subdirectory within each workspace.
 - **Edge Functions**: Supabase requires `index.ts` at the function root. The root `index.ts` is a thin shim that imports the Hono `app` from `src/index.ts` and calls `Deno.serve(app.fetch)`. All logic lives in `src/`.
 - **Frontend**: Already follows `src/` layout (not changed).
-- **packages/shared**: `mod.ts` at root re-exports from `src/types.ts`.
+- **Shared libraries** (`supabase/functions/_*`): `mod.ts` at root re-exports from `src/*.ts`.
 
 ---
 
@@ -155,8 +155,7 @@ supabase functions deploy stripe-webhook
 
 | Thing | Convention | Example |
 |---|---|---|
-| Files (frontend) | `kebab-case` | `feed-item.tsx`, `use-feed.ts` |
-| Files (Deno) | `snake_case` | `queue_processor.ts` |
+| Source files | `kebab-case` | `queue-consumer.ts`, `feed-item.tsx` |
 | React components | `PascalCase` | `FeedCard`, `QueueView` |
 | Hooks | `camelCase` prefixed with `use` | `useFeed`, `useAuth` |
 | Types / interfaces | `PascalCase` | `FeedItem`, `QueueStatus` |
@@ -196,10 +195,9 @@ import { Hono } from 'hono';
 
 - **Indentation**: 2 spaces (no tabs)
 - **Quotes**: single quotes (`'`) in TypeScript; double quotes in JSX attributes
-- **Semicolons**: always
-- **Trailing commas**: `'all'` (ES5+)
-- **Max line length**: 100 characters
-- **Prettier** for frontend; `deno fmt` for Deno code
+- **Semicolons**: none (configured in root `deno.json` with `"semiColons": false`)
+- **Max line length**: 120 characters
+- **`deno fmt`** for all code (Deno, Edge Functions, worker); frontend uses same settings via `deno.json`
 
 ### React Conventions
 

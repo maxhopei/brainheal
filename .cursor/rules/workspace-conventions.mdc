@@ -13,7 +13,7 @@ brainheal/
 ├── deno.lock
 ├── compose.yaml                # Docker Compose: worker + frontend
 ├── README.md
-├── frontend/                   # @brainheal/frontend
+├── frontend/                   # React + Vite PWA
 │   ├── src/                    # all TS/TSX source here
 │   ├── Dockerfile
 │   ├── nginx.conf
@@ -22,24 +22,34 @@ brainheal/
 │   └── deno.json
 ├── supabase/
 │   ├── functions/
-│   │   ├── _ingestion/         ← @brainheal/ingestion  (shared ingestion library)
+│   │   ├── _ingestion/         # @brainheal/ingestion — shared ingestion library
+│   │   │   ├── mod.ts          # package entry point
+│   │   │   ├── src/            # all source here
 │   │   │   └── deno.json
-│   │   ├── ingest/             ← @brainheal/fn-ingest  (Edge Function)
+│   │   ├── _storage/           # @brainheal/storage — repository implementations
+│   │   │   ├── mod.ts
+│   │   │   ├── src/
 │   │   │   └── deno.json
-│   │   ├── ingest/             # @brainheal/fn-ingest
+│   │   ├── _logging/           # @brainheal/logging — structured logging
+│   │   │   ├── mod.ts
+│   │   │   ├── src/
+│   │   │   └── deno.json
+│   │   ├── ingest/             # @brainheal/fn-ingest — Edge Function
 │   │   │   ├── index.ts        # thin shim only — see src/ convention below
-│   │   │   └── src/
-│   │   │       ├── index.ts    # Hono app + all logic
-│   │   │       └── index_test.ts
+│   │   │   ├── src/
+│   │   │   │   ├── index.ts    # Hono app + all logic
+│   │   │   │   └── config.ts
+│   │   │   └── deno.json
 │   │   └── stripe-webhook/     # @brainheal/fn-stripe-webhook
 │   │       ├── index.ts        # thin shim
-│   │       └── src/
-│   │           └── index.ts
+│   │       ├── src/
+│   │       │   └── index.ts
+│   │       └── deno.json
 │   └── migrations/
-├── worker/                     # @brainheal/worker
+├── worker/                     # @brainheal/worker — Fly.io processing worker
 │   ├── src/
 │   │   ├── main.ts
-│   │   └── *.ts
+│   │   └── config.ts
 │   ├── Dockerfile
 │   └── deno.json
 └── extension/                  # Phase 2, not yet implemented
@@ -64,11 +74,14 @@ app.post('/', async (c) => { ... });
 app.get('/health', (c) => c.json({ status: 'ok' }));
 ```
 
-**`packages/shared`**: `mod.ts` stays at root as the package entry point; all source goes in `src/`:
+**Shared libraries** (`supabase/functions/_*`): `mod.ts` stays at root as the package entry point; all source goes in `src/`:
 
 ```typescript
-// packages/shared/mod.ts
-export * from './src/types.ts';
+// supabase/functions/_storage/mod.ts
+export * from './src/billing.ts';
+export * from './src/content.ts';
+export * from './src/profile.ts';
+export * from './src/queue.ts';
 ```
 
 **Frontend** already follows `src/` — do not move it.

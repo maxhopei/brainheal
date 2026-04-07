@@ -91,12 +91,11 @@ The Fly.io worker is configured entirely through environment variables (stored a
 | Variable               | Required                       | Description                                                                                     |
 | ---------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------- |
 | `LLM_PROVIDER`         | Yes                            | `openai` \| `anthropic` \| `bedrock`                                                            |
-| `LLM_MODEL`            | No                             | Override the default model for the selected provider. Defaults per provider listed below.       |
-| `OPENAI_API_KEY`       | When `LLM_PROVIDER=openai`     | OpenAI API key. Default model: `gpt-4o-mini`.                                                   |
-| `ANTHROPIC_API_KEY`    | When `LLM_PROVIDER=anthropic`  | Anthropic API key. Default model: `claude-3-5-haiku-20241022`.                                  |
+| `LLM_MODEL`            | Yes                            | Model name for the selected provider (e.g., `gpt-4o-mini`, `claude-3-5-haiku-20241022`).        |
+| `LLM_API_KEY`          | When not using Bedrock         | API key for OpenAI or Anthropic.                                                                |
 | `AWS_ACCESS_KEY_ID`    | When `LLM_PROVIDER=bedrock`    | AWS IAM access key with `bedrock:InvokeModel` permission.                                       |
 | `AWS_SECRET_ACCESS_KEY`| When `LLM_PROVIDER=bedrock`    | AWS IAM secret key.                                                                             |
-| `AWS_REGION`           | When `LLM_PROVIDER=bedrock`    | AWS region for Bedrock. Default: `us-east-1`.                                                   |
+| `AWS_REGION`           | When `LLM_PROVIDER=bedrock`    | AWS region for Bedrock (e.g., `us-east-1`).                                                     |
 | `SUPABASE_URL`         | Yes                            | Supabase project URL.                                                                           |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes                       | Supabase service role key (bypasses RLS).                                                       |
 

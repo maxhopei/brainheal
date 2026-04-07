@@ -100,32 +100,45 @@ app.post('/ingest', async (c) => {
 
 ## Configuration
 
-- Every service has a single `config.ts` at its root.
-- It reads all required environment variables and exports a typed `Config` object.
-- Fail fast at startup: throw a descriptive error if a required variable is missing.
+- Every service has a single `config.ts` in its `src/` directory.
+- Use Zod to define a schema and parse `Deno.env.toObject()`.
+- Fail fast at startup: Zod will throw a descriptive error if a required variable is missing.
 - No other file reads `Deno.env` directly.
 
 ```typescript
-// worker/config.ts
-export type Config = {
-  supabaseUrl: string;
-  supabaseServiceRoleKey: string;
-  llmApiKey: string;
-  pollIntervalMs: number;
-};
+// worker/src/config.ts
+import { z } from 'zod/v4'
 
-export function loadConfig(): Config {
-  const get = (key: string): string => {
-    const val = Deno.env.get(key);
-    if (!val) throw new Error(`Missing required env var: ${key}`);
-    return val;
-  };
-  return {
-    supabaseUrl: get('SUPABASE_URL'),
-    supabaseServiceRoleKey: get('SUPABASE_SERVICE_ROLE_KEY'),
-    llmApiKey: get('LLM_API_KEY'),
-    pollIntervalMs: Number(Deno.env.get('POLL_INTERVAL_MS') ?? '5000'),
-  };
+const configSchema = z.object({
+  SUPABASE_URL: z.string().nonempty(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().nonempty(),
+  LLM_PROVIDER: z.enum(['openai', 'anthropic', 'bedrock']),
+  LLM_MODEL: z.string().nonempty(),
+  LLM_API_KEY: z.string().optional(),
+  AWS_ACCESS_KEY_ID: z.string().optional(),
+  AWS_SECRET_ACCESS_KEY: z.string().optional(),
+  AWS_REGION: z.string().optional(),
+  POLL_INTERVAL_MS: z.coerce.number().positive().default(5000),
+})
+
+const env = configSchema.parse(Deno.env.toObject())
+
+export const config = {
+  supabase: {
+    url: env.SUPABASE_URL,
+    serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
+  },
+  llm: {
+    provider: env.LLM_PROVIDER,
+    model: env.LLM_MODEL,
+    apiKey: env.LLM_API_KEY,
+    aws: {
+      accessKeyId: env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
+      region: env.AWS_REGION,
+    },
+  },
+  pollIntervalMs: env.POLL_INTERVAL_MS,
 }
 ```
 
