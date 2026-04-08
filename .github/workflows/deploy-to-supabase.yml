@@ -55,7 +55,9 @@ jobs:
         if: |
           (github.event_name == 'push' && steps.changes.outputs.migrations == 'true') ||
           (github.event_name == 'workflow_dispatch' && inputs.run_migrations)
-        run: supabase db push --project-ref $PROJECT_REF
+        run: |
+          supabase link --project-ref $PROJECT_REF
+          supabase db push
 
       - name: Deploy ingest function
         if: |
