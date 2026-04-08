@@ -52,6 +52,11 @@ jobs:
         with:
           version: latest
 
+      - name: Write signing keys
+        run: |
+          mkdir -p supabase
+          echo '${{ secrets.SUPABASE_SIGNING_KEYS }}' > supabase/signing_keys.json
+
       - name: Run migrations
         if: |
           (github.event_name == 'push' && steps.changes.outputs.migrations == 'true') ||
