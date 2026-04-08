@@ -14,6 +14,9 @@ type PostViewProps = {
 
 const SNAP_THRESHOLD = 0.5
 const ACTION_THRESHOLD = 0.4
+// Horizontal velocity (px/ms) that classifies a short, quick movement as a flick swipe.
+// A deliberate slow drag is typically < 0.2 px/ms; a fast flick is >= 0.3 px/ms.
+const FLICK_VELOCITY_THRESHOLD = 0.3
 
 /**
  * Renders a single post as a horizontally swipeable card carousel.
@@ -31,6 +34,9 @@ export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const isAnimatingRef = useRef<boolean>(false)
   const currentCardRef = useRef<number>(0)
+  // Locked on the first movement of each gesture: true = horizontal, false = vertical.
+  // null means no gesture in progress.
+  const isHorizontalSwipeRef = useRef<boolean | null>(null)
 
   if (!post) return null
 
@@ -113,16 +119,30 @@ export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
   }, [feedItem.id, onSnooze])
 
   const swipeHandlers = useSwipeable({
+    onSwipeStart: (e) => {
+      // Lock the gesture axis on the first movement that exceeds the delta threshold.
+      // A swipe is horizontal only when the x-displacement dominates (angle <= 45°).
+      isHorizontalSwipeRef.current = e.absX >= e.absY
+    },
     onSwiping: (e) => {
       if (isAnimatingRef.current) return
+      if (!isHorizontalSwipeRef.current) return
+      // Prevent the browser from scrolling while we own this horizontal gesture.
+      if (e.event.cancelable) e.event.preventDefault()
       setSwipeOffset(e.deltaX)
     },
     onSwiped: (e) => {
+      const wasHorizontal = isHorizontalSwipeRef.current
+      isHorizontalSwipeRef.current = null
+
       if (isAnimatingRef.current) return
+      if (!wasHorizontal) return
 
       const containerWidth = containerRef.current?.offsetWidth ?? 300
       const deltaX = e.deltaX
       const swipeRatio = Math.abs(deltaX) / containerWidth
+      // Horizontal velocity in px/ms — used to recognise short, fast flick gestures.
+      const isFlick = Math.abs(e.vxvy[0]) >= FLICK_VELOCITY_THRESHOLD
       const swipedLeft = deltaX < 0
       const swipedRight = deltaX > 0
 
@@ -130,16 +150,16 @@ export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
       const isFirst = card === 0
       const isLast = card === totalCards - 1
 
-      if (isLast && swipedLeft && swipeRatio > ACTION_THRESHOLD) {
+      if (isLast && swipedLeft && (swipeRatio > ACTION_THRESHOLD || isFlick)) {
         handleMarkRead()
         return
       }
-      if (isFirst && swipedRight && swipeRatio > ACTION_THRESHOLD) {
+      if (isFirst && swipedRight && (swipeRatio > ACTION_THRESHOLD || isFlick)) {
         handleSnooze()
         return
       }
 
-      if (swipeRatio > SNAP_THRESHOLD) {
+      if (swipeRatio > SNAP_THRESHOLD || isFlick) {
         if (swipedLeft && card < totalCards - 1) {
           animateToCard(card + 1, 'left')
           return
@@ -152,7 +172,11 @@ export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
 
       snapBack()
     },
-    preventScrollOnSwipe: true,
+    // Scroll prevention is handled manually in onSwiping (only for horizontal gestures),
+    // so we disable the library's blanket preventScrollOnSwipe and opt out of passive
+    // listeners so that preventDefault() is actually honoured.
+    preventScrollOnSwipe: false,
+    touchEventOptions: { passive: false },
     trackTouch: true,
     trackMouse: true,
     delta: 10,
