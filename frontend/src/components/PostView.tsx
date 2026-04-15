@@ -12,6 +12,7 @@ type PostViewProps = {
   feedItem: FeedItem
   onRead: (feedItemId: string) => void
   onSnooze: (feedItemId: string) => void
+  onItemQueued?: (feedItemId: string) => Promise<void>
 }
 
 const SNAP_THRESHOLD = 0.5
@@ -39,7 +40,7 @@ type SelectionState = {
  * - Select text in a card → "Read next" button appears above selection
  * - Tap "Read next" → selected text queued as new feed item after this post
  */
-export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
+export function PostView({ feedItem, onRead, onSnooze, onItemQueued }: PostViewProps) {
   const post = feedItem.post
   const [currentCard, setCurrentCard] = useState<number>(0)
   const [swipeOffset, setSwipeOffset] = useState<number>(0)
@@ -126,10 +127,10 @@ export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
   const handleReadNextSelection = async () => {
     if (!selection || !post) return
 
-    await queueReadNext(selection.text, 'text', post.id, selection.cardId)
-    // Clear selection
+    const feedItemId = await queueReadNext(selection.text, 'text', post.id, selection.cardId)
     ;(globalThis as Window).getSelection()?.removeAllRanges()
     setSelection(null)
+    if (feedItemId) await onItemQueued?.(feedItemId)
   }
 
   // Dismiss selection on swipe start
@@ -360,7 +361,7 @@ export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
           {prevCard && swipeOffset > 0 && (
             <div className={styles.adjacentCard} style={{ left: '-100%' }}>
               <div className={styles.selectableContent} data-card-id={prevCard.id}>
-                <CardView card={prevCard} postTitle={post.title} isFirstCard={false} postId={post.id} />
+                <CardView card={prevCard} postTitle={post.title} isFirstCard={false} postId={post.id} onItemQueued={onItemQueued} />
               </div>
             </div>
           )}
@@ -369,7 +370,7 @@ export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
           {card && (
             <div className={styles.currentCard}>
               <div className={styles.selectableContent} data-card-id={card.id}>
-                <CardView card={card} postTitle={post.title} isFirstCard={currentCard === 0} postId={post.id} />
+                <CardView card={card} postTitle={post.title} isFirstCard={currentCard === 0} postId={post.id} onItemQueued={onItemQueued} />
               </div>
             </div>
           )}
@@ -378,7 +379,7 @@ export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
           {nextCard && swipeOffset < 0 && (
             <div className={styles.adjacentCard} style={{ left: '100%' }}>
               <div className={styles.selectableContent} data-card-id={nextCard.id}>
-                <CardView card={nextCard} postTitle={post.title} isFirstCard={false} postId={post.id} />
+                <CardView card={nextCard} postTitle={post.title} isFirstCard={false} postId={post.id} onItemQueued={onItemQueued} />
               </div>
             </div>
           )}

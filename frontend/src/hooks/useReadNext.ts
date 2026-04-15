@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 
 export type ReadNextStatus = 'idle' | 'loading' | 'success' | 'error'
@@ -9,7 +10,7 @@ export type UseReadNextResult = {
     type: 'text' | 'url',
     parentPostId: string,
     parentCardId: string,
-  ) => Promise<void>
+  ) => Promise<string | null>
   status: ReadNextStatus
 }
 
@@ -21,10 +22,10 @@ export function useReadNext(): UseReadNextResult {
     type: 'text' | 'url',
     parentPostId: string,
     parentCardId: string,
-  ): Promise<void> => {
+  ): Promise<string | null> => {
     setStatus('loading')
     try {
-      const { error } = await supabase.functions.invoke('ingest', {
+      const { data, error } = await supabase.functions.invoke<{ feed_item_id: string }>('ingest', {
         body: {
           type,
           value,
@@ -33,19 +34,21 @@ export function useReadNext(): UseReadNextResult {
         },
       })
 
-      if (error) {
-        console.error('Read next failed:', error)
+      if (error || !data?.feed_item_id) {
+        toast.error('Failed to queue item — please try again')
         setStatus('error')
-        return
+        setTimeout(() => setStatus('idle'), 2000)
+        return null
       }
 
       setStatus('success')
-      // Reset to idle after showing success
       setTimeout(() => setStatus('idle'), 2000)
-    } catch (err) {
-      console.error('Read next failed:', err)
+      return data.feed_item_id
+    } catch {
+      toast.error('Failed to queue item — please try again')
       setStatus('error')
       setTimeout(() => setStatus('idle'), 2000)
+      return null
     }
   }
 

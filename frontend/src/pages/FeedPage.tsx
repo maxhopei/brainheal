@@ -15,7 +15,7 @@ import type { FeedItem } from '@brainheal/storage';
 export function FeedPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { items, loading, error, loadMore, hasMore, removeItem, refreshItem } = useFeed(
+  const { items, loading, error, loadMore, hasMore, removeItem, refreshItem, insertItem } = useFeed(
     user?.id ?? null,
   );
 
@@ -89,6 +89,7 @@ export function FeedPage() {
               feedItem={item}
               onRead={removeItem}
               onSnooze={refreshItem}
+              onItemQueued={insertItem}
             />
           </div>
         );

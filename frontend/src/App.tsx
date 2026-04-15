@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { AuthGuard } from '@/components/AuthGuard';
 import { BottomNav } from '@/components/BottomNav';
 import { LoginPage } from '@/pages/LoginPage';
@@ -17,6 +18,7 @@ import styles from './App.module.css';
 export default function App() {
   return (
     <BrowserRouter>
+      <Toaster position="bottom-center" richColors />
       <Routes>
         {/* Public route */}
         <Route path="/login" element={<LoginPage />} />

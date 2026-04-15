@@ -22,6 +22,7 @@ export function SkeletonCard({ feedItem }: SkeletonCardProps) {
       role="status"
       aria-label={`Processing: ${truncated || 'content'}`}
     >
+      {truncated && <h2 className={styles.cardTitle}>{truncated}</h2>}
       {/* Shimmer lines */}
       {!isFailed && (
         <>

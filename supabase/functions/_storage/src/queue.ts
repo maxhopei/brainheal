@@ -89,8 +89,24 @@ export class IngestionQueue {
       if (parentPosError) throw new Error('Failed to find parent feed position', { cause: parentPosError })
 
       if (parentFeedItem) {
-        // Place immediately after the parent: parent_position + 0.5
-        nextPosition = (parentFeedItem.position as number) + 0.5
+        const parentPos = parentFeedItem.position as number
+
+        // Find the item immediately after the parent so we can place the new
+        // item exactly halfway between them — safe for repeated / chained reads.
+        const { data: nextItem, error: nextPosError } = await this.supabase
+          .from('feed_items')
+          .select('position')
+          .eq('user_id', userId)
+          .gt('position', parentPos)
+          .order('position', { ascending: true })
+          .limit(1)
+          .maybeSingle()
+
+        if (nextPosError) throw new Error('Failed to find next feed position', { cause: nextPosError })
+
+        nextPosition = nextItem
+          ? (parentPos + (nextItem.position as number)) / 2
+          : parentPos + 1
       } else {
         // Parent not found (may have been read/deleted) — fall back to end of feed
         nextPosition = await this.getMaxPosition(userId)

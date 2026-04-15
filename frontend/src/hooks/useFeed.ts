@@ -13,6 +13,7 @@ type UseFeedReturn = {
   loadMore: () => void;
   removeItem: (feedItemId: string) => void;
   refreshItem: (feedItemId: string) => void;
+  insertItem: (feedItemId: string) => Promise<void>;
 };
 
 /**
@@ -39,7 +40,7 @@ export function useFeed(userId: string | null): UseFeedReturn {
           id, position, state, source_type, shared_by_user_id, shared_message,
           created_at, read_at,
           queue_item:queue_items(id, status, error_message, input_type, input_value, retry_count, created_at, started_at, completed_at),
-          post:posts(
+          post:posts!feed_items_post_id_fkey(
             id, title, status, source_url, source_text, error_message, created_at, updated_at,
             cards(id, position, content_type, text_content, media_url, media_caption, created_at)
           )
@@ -108,7 +109,7 @@ export function useFeed(userId: string | null): UseFeedReturn {
               id, position, state, source_type, shared_by_user_id, shared_message,
               created_at, read_at,
               queue_item:queue_items(id, status, error_message, input_type, input_value, retry_count, created_at, started_at, completed_at),
-              post:posts(
+              post:posts!feed_items_post_id_fkey(
                 id, title, status, source_url, source_text, error_message, created_at, updated_at,
                 cards(id, position, content_type, text_content, media_url, media_caption, created_at)
               )
@@ -163,7 +164,7 @@ export function useFeed(userId: string | null): UseFeedReturn {
           id, position, state, source_type, shared_by_user_id, shared_message,
           created_at, read_at,
           queue_item:queue_items(id, status, error_message, input_type, input_value, retry_count, created_at, started_at, completed_at),
-          post:posts(
+          post:posts!feed_items_post_id_fkey(
             id, title, status, source_url, source_text, error_message, created_at, updated_at,
             cards(id, position, content_type, text_content, media_url, media_caption, created_at)
           )
@@ -182,7 +183,35 @@ export function useFeed(userId: string | null): UseFeedReturn {
     [],
   );
 
-  return { items, loading, error, hasMore, loadMore, removeItem, refreshItem };
+  /**
+   * Fetch a newly created feed item by ID and insert it into the local list,
+   * sorted by position. Used to show the skeleton immediately after queuing.
+   */
+  const insertItem = useCallback(async (feedItemId: string) => {
+    const { data } = await supabase
+      .from('feed_items')
+      .select(`
+        id, position, state, source_type, shared_by_user_id, shared_message,
+        created_at, read_at,
+        queue_item:queue_items(id, status, error_message, input_type, input_value, retry_count, created_at, started_at, completed_at),
+        post:posts!feed_items_post_id_fkey(
+          id, title, status, source_url, source_text, error_message, created_at, updated_at,
+          cards(id, position, content_type, text_content, media_url, media_caption, created_at)
+        )
+      `)
+      .eq('id', feedItemId)
+      .single();
+
+    if (data) {
+      const newItem = data as unknown as FeedItem;
+      setItems((prev) => {
+        if (prev.some((item) => item.id === feedItemId)) return prev;
+        return [...prev, newItem].sort((a, b) => a.position - b.position);
+      });
+    }
+  }, []);
+
+  return { items, loading, error, hasMore, loadMore, removeItem, refreshItem, insertItem };
 }
 
 // Re-export type for use in components

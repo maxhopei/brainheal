@@ -10,6 +10,7 @@ type CardViewProps = {
   postTitle?: string
   isFirstCard?: boolean
   postId?: string
+  onItemQueued?: (feedItemId: string) => Promise<void>
 }
 
 type LinkMenuState = {
@@ -27,7 +28,7 @@ type LinkMenuState = {
  * On the first card, the post title is displayed prominently at the top.
  * If postId is provided, links and text selections can trigger "Read next".
  */
-export function CardView({ card, postTitle, isFirstCard, postId }: CardViewProps) {
+export function CardView({ card, postTitle, isFirstCard, postId, onItemQueued }: CardViewProps) {
   const [linkMenu, setLinkMenu] = useState<LinkMenuState | null>(null)
   const { queueReadNext, status: linkStatus } = useReadNext()
 
@@ -50,9 +51,10 @@ export function CardView({ card, postTitle, isFirstCard, postId }: CardViewProps
 
   const handleReadNextLink = async () => {
     if (!linkMenu || !postId) return
-    await queueReadNext(linkMenu.url, 'url', postId, card.id)
-    if (linkStatus !== 'error') {
+    const feedItemId = await queueReadNext(linkMenu.url, 'url', postId, card.id)
+    if (feedItemId) {
       setLinkMenu(null)
+      await onItemQueued?.(feedItemId)
     }
   }
 

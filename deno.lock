@@ -17,6 +17,7 @@
     "npm:react-router-dom@6": "6.30.3_react@18.3.1_react-dom@18.3.1__react@18.3.1",
     "npm:react-swipeable@7": "7.0.2_react@18.3.1",
     "npm:react@18": "18.3.1",
+    "npm:sonner@^2.0.7": "2.0.7_react@18.3.1_react-dom@18.3.1__react@18.3.1",
     "npm:vite-plugin-pwa@0.21": "0.21.2_vite@5.4.21_workbox-build@7.4.0_workbox-window@7.4.0",
     "npm:vite@*": "5.4.21",
     "npm:vite@5": "5.4.21",
@@ -3068,6 +3069,13 @@
     "smob@1.6.1": {
       "integrity": "sha512-KAkBqZl3c2GvNgNhcoyJae1aKldDW0LO279wF9bk1PnluRTETKBq0WyzRXxEhoQLk56yHaOY4JCBEKDuJIET5g=="
     },
+    "sonner@2.0.7_react@18.3.1_react-dom@18.3.1__react@18.3.1": {
+      "integrity": "sha512-W6ZN4p58k8aDKA4XPcx2hpIQXBRAgyiWVkYhT7CvK6D3iAu7xjvVyhQHg2/iaKJZ1XVJ4r7XuwGL+WGEK37i9w==",
+      "dependencies": [
+        "react",
+        "react-dom"
+      ]
+    },
     "source-map-js@1.2.1": {
       "integrity": "sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA=="
     },
@@ -3684,6 +3692,7 @@
           "npm:react-router-dom@6",
           "npm:react-swipeable@7",
           "npm:react@18",
+          "npm:sonner@^2.0.7",
           "npm:vite-plugin-pwa@0.21",
           "npm:vite@5",
           "npm:workbox-window@7"
