@@ -1,6 +1,6 @@
 # BrainHeal — Content Ingestion & Processing Pipeline
 
-Status: ✅ Implemented
+Status: ✅/🤷🏻 Partially implemented
 
 ## 1. Content Ingestion
 
@@ -13,11 +13,11 @@ Users submit content to BrainHeal in two forms:
 
 **Input channels** (by priority):
 
-| Channel           | Priority | Platform         | Description                                                           |
-| ----------------- | -------- | ---------------- | --------------------------------------------------------------------- |
-| OS Share Sheet    | Critical | Mobile web (PWA) | Share a URL from any app directly to BrainHeal. Primary input method. |
-| In-app input      | Critical | All              | Paste a URL or type free text within the app.                         |
-| Browser extension | High     | Desktop          | Click an icon in the browser toolbar to send the current page.        |
+| Channel           | Priority | Status         | Platform         | Description                                                           |
+| ----------------- | -------- | -------------  | ---------------- | --------------------------------------------------------------------- |
+| OS Share Sheet    | Critical | 🤷🏻 Planned     | Mobile web (PWA) | Share a URL from any app directly to BrainHeal. Primary input method. |
+| In-app input      | Critical | ✅ Implemented | All              | Paste a URL or type free text within the app.                         |
+| Browser extension | High     | 🤷🏻 Planned     | Desktop          | Click an icon in the browser toolbar to send the current page.        |
 
 **Behavior:**
 
