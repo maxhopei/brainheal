@@ -20,7 +20,7 @@
   --color-success: #34d399;
   --color-warning: #fbbf24;
 
-  --nav-height: 64px;
+  --nav-height: 80px;
   --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-inset-top: env(safe-area-inset-top, 0px);
 }
