@@ -13,6 +13,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       manifest: false, // Using our own public/manifest.json
       workbox: {
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/manifest\.json$/],
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
