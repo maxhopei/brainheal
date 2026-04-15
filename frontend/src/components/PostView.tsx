@@ -210,13 +210,22 @@ export function PostView({ feedItem, onRead, onSnooze, onItemQueued }: PostViewP
   }, [feedItem.id, onSnooze, clearSelection])
 
   const swipeHandlers = useSwipeable({
-    onSwipeStart: (e) => {
-      // Lock the gesture axis on the first movement that exceeds the delta threshold.
-      // A swipe is horizontal only when the x-displacement dominates (angle <= 45°).
-      isHorizontalSwipeRef.current = e.absX >= e.absY
+    onSwipeStart: (_e) => {
+      // Don't classify the axis here — absX/absY are both 0 at touchstart.
+      // Defer to onSwiping where actual movement data is available.
+      isHorizontalSwipeRef.current = null
     },
     onSwiping: (e) => {
       if (isAnimatingRef.current) return
+      // If text is already selected the user is likely adjusting a selection handle — don't swipe.
+      if ((globalThis as Window).getSelection()?.isCollapsed === false) {
+        isHorizontalSwipeRef.current = false
+        return
+      }
+      // Classify axis on the first meaningful movement.
+      if (isHorizontalSwipeRef.current === null) {
+        isHorizontalSwipeRef.current = e.absX >= e.absY
+      }
       if (!isHorizontalSwipeRef.current) return
       // Clear text selection when swiping horizontally
       clearSelection()
