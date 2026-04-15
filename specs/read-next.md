@@ -1,6 +1,6 @@
 # BrainHeal — Read Next
 
-Status: 🤷🏻 Planned
+Status: ✅ Implemented
 
 ## 1. Overview
 

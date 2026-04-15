@@ -177,6 +177,8 @@ CREATE TRIGGER on_profile_created
 
 **Soft deletes:** Posts marked as "read" remain in the database (for favorites, reactions, and future search). Only `FEED_ITEM.state` changes to `'read'`.
 
+**Read Next:** `queue_items` includes nullable `parent_post_id` and `parent_card_id` (FKs to `posts` and `cards`, `ON DELETE SET NULL`) for items queued from in-post text or links. `feed_items` includes nullable `parent_post_id` (FK to `posts`) so child rows can be ordered after the parent. The `renormalize_feed_positions(p_user_id uuid)` RPC reassigns unread `feed_items.position` values to consecutive integers `1, 2, 3, …` in sort order when fractional positions need collapsing.
+
 ---
 
 ## 4. Row Level Security (RLS) Policies

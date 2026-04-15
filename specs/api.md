@@ -2,7 +2,7 @@
 
 Status: ✅ Implemented (cross-cutting, dynamic)
 
-This document covers all client↔backend API interactions beyond authentication. For auth, see [auth.md](./auth.md). For the ingestion Edge Function, see [content-ingestion.md](./content-ingestion.md).
+This document covers all client↔backend API interactions beyond authentication. For auth, see [auth.md](./auth.md). For the ingestion Edge Function (request body: `type`, `value`, and optional Read Next UUIDs `parent_post_id`, `parent_card_id`), see [content-ingestion.md](./content-ingestion.md).
 
 ---
 

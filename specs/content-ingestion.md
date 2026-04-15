@@ -96,13 +96,15 @@ const { data, error } = await supabase.functions.invoke('ingest', {
 });
 ```
 
+The body may optionally include `parent_post_id` and `parent_card_id` for **Read Next** (related ingest from an existing post/card).
+
 Edge Function steps:
 
 1. Validate input (URL format, text length).
 2. Get the user from the JWT (passed automatically by the SDK).
 3. Check if user has available quota (optional in MVP).
 4. INSERT into `queue_items` (status: `pending`).
-5. Compute next feed position: `max(position) + 1` for this user.
+5. Compute feed position: `parent_position + 0.5` when `parent_post_id` is provided, otherwise `MAX(position) + 1` for this user.
 6. INSERT into `feed_items` (post_id: `null`, state: `unread`, queue_item_id: new queue item).
 7. Return `{ queue_item_id, feed_item_id }`.
 
