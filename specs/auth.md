@@ -1,5 +1,7 @@
 # BrainHeal — Authentication & Accounts
 
+Status: ✅ Implemented (cross-cutting, dynamic)
+
 ## 1. Overview
 
 Authentication is handled entirely by **Supabase Auth**. No custom auth backend.

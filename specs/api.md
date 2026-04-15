@@ -1,5 +1,7 @@
 # BrainHeal — API Design
 
+Status: ✅ Implemented (cross-cutting, dynamic)
+
 This document covers all client↔backend API interactions beyond authentication. For auth, see [auth.md](./auth.md). For the ingestion Edge Function, see [content-ingestion.md](./content-ingestion.md).
 
 ---

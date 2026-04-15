@@ -1,5 +1,7 @@
 # BrainHeal — Card Q&A
 
+Status: 🤷🏻 Planned
+
 ## 1. Overview
 
 While reading a card the user can ask free-form questions about the content.

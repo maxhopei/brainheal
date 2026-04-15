@@ -1,5 +1,7 @@
 # BrainHeal — Feed, Posts & Cards
 
+Status: ✅ Implemented
+
 ## 1. Posts & Cards
 
 A **post** represents a single logical piece of ingested content. A **card** is one screen of information within a post.

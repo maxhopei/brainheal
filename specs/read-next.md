@@ -1,5 +1,7 @@
 # BrainHeal — Read Next
 
+Status: 🤷🏻 Planned
+
 ## 1. Overview
 
 While reading cards, users can select interesting terms or tap links to learn more. The selected content is queued for processing and inserted as a new post immediately after the current post in the feed. This creates an organic, context-aware reading flow.

@@ -1,10 +1,14 @@
 # BrainHeal — Social Features
 
+Status: ✅ / 🤷🏻 Partially implemented, mostly planned
+
 Covers: Favorites, Reactions, Recommendations, In-App Sharing, External Sharing.
 
 ---
 
 ## 1. Favorites [Medium — MVP]
+
+Status: ✅ Implemented
 
 Users can save posts to organized collections.
 
@@ -53,6 +57,8 @@ const { data } = await supabase
 
 ## 2. Reactions [Low — Phase 2]
 
+Status: 🤷🏻 Planned
+
 Two reaction types:
 
 | Reaction | Meaning                        | Used for                          |
@@ -80,6 +86,8 @@ await supabase.from('reactions').delete().match({ user_id: userId, post_id: post
 
 ## 3. Recommendations [Low — Phase 3]
 
+Status: 🤷🏻 Planned
+
 When the feed is empty (all content read), the app suggests new topics.
 
 ### Behavior
@@ -103,6 +111,8 @@ Because you were interested in [related topic].
 
 ## 4. In-App Sharing [Extra-low — Phase 3]
 
+Status: 🤷🏻 Planned
+
 - Share a post with another BrainHeal user by nickname.
 - Recent share contacts are suggested.
 - Shared posts appear in the recipient's feed, clearly marked with sender info and an optional message.
@@ -118,6 +128,8 @@ The `feed_items` table carries:
 ---
 
 ## 5. External Sharing [Low — Phase 3]
+
+Status: 🤷🏻 Planned
 
 - Standard OS share sheet integration.
 - Shared content includes: first card text + link to web view of the post.

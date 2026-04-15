@@ -1,5 +1,7 @@
 # BrainHeal — Billing
 
+Status: 🤷🏻 Planned (partially weaved in)
+
 ## 1. Tiers [Low — Phase 2]
 
 | Tier     | Limits                         | Recommendations |

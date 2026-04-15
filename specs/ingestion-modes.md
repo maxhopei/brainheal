@@ -1,5 +1,7 @@
 # BrainHeal — Ingestion Modes
 
+Status: ✅ Implemented
+
 ## 1. Motivation
 
 The current architecture splits content processing across two services:

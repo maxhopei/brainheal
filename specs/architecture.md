@@ -1,5 +1,7 @@
 # BrainHeal — Architecture
 
+Status: ✅ Implemented (cross-cutting, dynamic)
+
 ## 1. System Overview
 
 The system is split between **Supabase** (managed platform) and **Fly.io** (processing worker). Supabase provides the database, auth, storage, API layer, and realtime subscriptions. Fly.io hosts the long-running processing worker that cannot run within Supabase Edge Functions' 150-second timeout.

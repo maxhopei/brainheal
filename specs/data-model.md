@@ -1,5 +1,7 @@
 # BrainHeal — Data Model
 
+Status: ✅ Implemented (cross-cutting, dynamic)
+
 ## 1. Entity-Relationship Diagram
 
 ```mermaid
