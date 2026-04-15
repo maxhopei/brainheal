@@ -109,6 +109,7 @@ export function SettingsPage() {
                 )}
                 <div className={styles.nicknameActions}>
                   <button
+                    type="button"
                     className={styles.saveButton}
                     onClick={handleSaveNickname}
                     disabled={savingNickname}
@@ -116,6 +117,7 @@ export function SettingsPage() {
                     {savingNickname ? 'Saving…' : 'Save'}
                   </button>
                   <button
+                    type="button"
                     className={styles.cancelButton}
                     onClick={() => {
                       setEditingNickname(false);
@@ -134,6 +136,7 @@ export function SettingsPage() {
                   {profile?.nickname ?? <em className={styles.muted}>Not set</em>}
                 </span>
                 <button
+                  type="button"
                   className={styles.editButton}
                   onClick={() => setEditingNickname(true)}
                   aria-label="Edit nickname"
@@ -148,6 +151,7 @@ export function SettingsPage() {
         {/* Sign out */}
         <section className={styles.section}>
           <button
+            type="button"
             className={styles.signOutButton}
             onClick={handleSignOut}
             disabled={signingOut}

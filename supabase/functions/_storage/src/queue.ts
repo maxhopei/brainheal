@@ -18,6 +18,8 @@ export type QueueItem = {
   created_at: string
   started_at: string | null
   completed_at: string | null
+  parent_post_id: string | null
+  parent_card_id: string | null
 }
 
 export type AddItemResult = {
@@ -31,6 +33,13 @@ export type ClaimedItem = {
   inputType: InputType
   inputValue: string
   retryCount: number
+  parentPostId: string | null
+  parentCardId: string | null
+}
+
+export type AddItemOptions = {
+  parentPostId?: string | null
+  parentCardId?: string | null
 }
 
 export class IngestionQueue {
@@ -42,7 +51,10 @@ export class IngestionQueue {
     inputType: string,
     inputValue: string,
     initialStatus: 'pending' | 'processing',
+    options: AddItemOptions = {},
   ): Promise<AddItemResult> {
+    const { parentPostId = null, parentCardId = null } = options
+
     // Insert queue_item
     const { data: queueItem, error: queueError } = await this.supabase
       .from('queue_items')
@@ -53,6 +65,8 @@ export class IngestionQueue {
         status: initialStatus satisfies QueueItemStatus,
         retry_count: 0,
         started_at: initialStatus === 'processing' ? new Date().toISOString() : null,
+        parent_post_id: parentPostId,
+        parent_card_id: parentCardId,
       })
       .select('id')
       .single()
@@ -60,18 +74,30 @@ export class IngestionQueue {
     if (queueError) throw new Error('Failed to create queue item', { cause: queueError })
     if (!queueItem) throw new Error('Failed to create queue item: no item id returned')
 
-    // Compute next feed position: MAX(position) + 1 for this user
-    const { data: posData, error: posError } = await this.supabase
-      .from('feed_items')
-      .select('position')
-      .eq('user_id', userId)
-      .order('position', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+    // Compute feed position
+    let nextPosition: number
 
-    if (posError) throw new Error('Failed to compute feed position', { cause: posError })
+    if (parentPostId) {
+      // Find parent's current feed position for this user
+      const { data: parentFeedItem, error: parentPosError } = await this.supabase
+        .from('feed_items')
+        .select('position')
+        .eq('post_id', parentPostId)
+        .eq('user_id', userId)
+        .maybeSingle()
 
-    const nextPosition = posData ? (posData.position as number) + 1 : 1
+      if (parentPosError) throw new Error('Failed to find parent feed position', { cause: parentPosError })
+
+      if (parentFeedItem) {
+        // Place immediately after the parent: parent_position + 0.5
+        nextPosition = (parentFeedItem.position as number) + 0.5
+      } else {
+        // Parent not found (may have been read/deleted) — fall back to end of feed
+        nextPosition = await this.getMaxPosition(userId)
+      }
+    } else {
+      nextPosition = await this.getMaxPosition(userId)
+    }
 
     // Insert feed_item with post_id=null (skeleton state)
     const { data: feedItem, error: feedError } = await this.supabase
@@ -83,6 +109,7 @@ export class IngestionQueue {
         position: nextPosition,
         state: 'unread',
         source_type: 'self',
+        parent_post_id: parentPostId,
       })
       .select('id')
       .single()
@@ -97,6 +124,20 @@ export class IngestionQueue {
       queueItemId: queueItem.id,
       feedItemId: feedItem.id,
     }
+  }
+
+  private async getMaxPosition(userId: string): Promise<number> {
+    const { data: posData, error: posError } = await this.supabase
+      .from('feed_items')
+      .select('position')
+      .eq('user_id', userId)
+      .order('position', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (posError) throw new Error('Failed to compute feed position', { cause: posError })
+
+    return posData ? (posData.position as number) + 1 : 1
   }
 
   public async claimNextPendingItem(): Promise<ClaimedItem | null> {
@@ -122,6 +163,8 @@ export class IngestionQueue {
       inputType: claimedItem.input_type,
       inputValue: claimedItem.input_value,
       retryCount: claimedItem.retry_count ?? 0,
+      parentPostId: claimedItem.parent_post_id ?? null,
+      parentCardId: claimedItem.parent_card_id ?? null,
     }
   }
 

@@ -1,5 +1,11 @@
-import type { LLMCardOutput, LLMProvider, LLMSummarizeResult } from '../provider.ts'
-import { RESEARCH_SYSTEM_PROMPT, STRICT_RETRY_SUFFIX, SYSTEM_PROMPT } from '../prompts.ts'
+import type { LLMCardOutput, LLMProvider, LLMSummarizeResult, ParentContext } from '../provider.ts'
+import {
+  buildReadNextResearchPrompt,
+  buildReadNextSystemPrompt,
+  RESEARCH_SYSTEM_PROMPT,
+  STRICT_RETRY_SUFFIX,
+  SYSTEM_PROMPT,
+} from '../prompts.ts'
 import { parseAndValidateLLMOutput } from '../parse.ts'
 
 export class AnthropicProvider implements LLMProvider {
@@ -51,10 +57,12 @@ export class AnthropicProvider implements LLMProvider {
     }
   }
 
-  async summarize(content: string): Promise<LLMSummarizeResult> {
+  async summarize(content: string, parentContext?: ParentContext): Promise<LLMSummarizeResult> {
     // Cost rates for claude-3-5-haiku (per 1M tokens as of 2025)
     const INPUT_COST_PER_TOKEN = 0.80 / 1_000_000
     const OUTPUT_COST_PER_TOKEN = 4.00 / 1_000_000
+
+    const systemPrompt = parentContext ? buildReadNextSystemPrompt(parentContext) : SYSTEM_PROMPT
 
     let result: { content: string; inputTokens: number; outputTokens: number }
     let output: LLMCardOutput
@@ -63,7 +71,7 @@ export class AnthropicProvider implements LLMProvider {
 
     try {
       result = await this.callAnthropic(
-        SYSTEM_PROMPT,
+        systemPrompt,
         `Summarize this article into cards:\n\n${content}`,
       )
       totalInput += result.inputTokens
@@ -73,7 +81,7 @@ export class AnthropicProvider implements LLMProvider {
       console.warn('First Anthropic attempt failed, retrying:', firstError)
       try {
         result = await this.callAnthropic(
-          SYSTEM_PROMPT + STRICT_RETRY_SUFFIX,
+          systemPrompt + STRICT_RETRY_SUFFIX,
           `Summarize this article into cards:\n\n${content}`,
         )
         totalInput += result.inputTokens
@@ -97,11 +105,13 @@ export class AnthropicProvider implements LLMProvider {
     }
   }
 
-  async researchTopic(topic: string): Promise<string> {
-    const result = await this.callAnthropic(
-      RESEARCH_SYSTEM_PROMPT,
-      `Write a comprehensive overview of this topic: ${topic}`,
-    )
+  async researchTopic(topic: string, parentContext?: ParentContext): Promise<string> {
+    const systemPrompt = parentContext ? buildReadNextResearchPrompt(parentContext) : RESEARCH_SYSTEM_PROMPT
+    const userMessage = parentContext
+      ? `Research this term in the context described above: ${topic}`
+      : `Write a comprehensive overview of this topic: ${topic}`
+
+    const result = await this.callAnthropic(systemPrompt, userMessage)
     return result.content
   }
 }

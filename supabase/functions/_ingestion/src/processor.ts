@@ -7,7 +7,12 @@ import { Logger } from '@brainheal/logging'
 import type { AddPostCardProps, AddPostProps, BillingRepository, ContentRepository } from '@brainheal/storage'
 
 import { fetchArticle } from './fetcher.ts'
-import type { LLMCardItem, LLMCardOutput, LLMProvider } from './llm/provider.ts'
+import type { LLMCardItem, LLMCardOutput, LLMProvider, ParentContext } from './llm/provider.ts'
+
+export type ProcessItemOptions = {
+  parentPostId?: string | null
+  parentCardId?: string | null
+}
 
 export class Processor {
   private readonly logger = Logger.create('Ingestion Processor')
@@ -24,10 +29,30 @@ export class Processor {
     queueItemId: string,
     inputType: 'url' | 'text',
     inputValue: string,
+    options: ProcessItemOptions = {},
   ): Promise<void> {
+    const { parentPostId = null, parentCardId: _parentCardId = null } = options
     const logger = this.logger.withProps({ queueItemId, userId })
 
-    // 1. Fetch or research content
+    // 1. Fetch parent context if this is a "Read next" item
+    let parentContext: ParentContext | undefined
+
+    if (parentPostId) {
+      logger.withProps({ parentPostId }).debug('Fetching parent post context')
+      const ctx = await this.contentRepository.getParentPostContext(parentPostId, userId)
+      if (ctx) {
+        parentContext = {
+          postTitle: ctx.postTitle,
+          cardTexts: ctx.cardTexts,
+          selectedValue: inputValue,
+        }
+        logger.debug('Parent context loaded')
+      } else {
+        logger.withProps({ parentPostId }).warning('Parent post not found; processing without context')
+      }
+    }
+
+    // 2. Fetch or research content
     let articleContent: string
     let articleTitle: string
     let articleImages: string[] = []
@@ -40,13 +65,13 @@ export class Processor {
       articleImages = fetched.images
     } else {
       logger.withProps({ inputType, inputValue }).debug('Researching topic')
-      articleContent = await this.llm.researchTopic(inputValue)
+      articleContent = await this.llm.researchTopic(inputValue, parentContext)
       articleTitle = inputValue
     }
 
-    // 2. Generate cards via LLM
+    // 3. Generate cards via LLM
     logger.debug('Calling LLM to generate cards')
-    const llmResult = await this.llm.summarize(articleContent)
+    const llmResult = await this.llm.summarize(articleContent, parentContext)
     const { output, usage } = llmResult
 
     logger
@@ -58,7 +83,7 @@ export class Processor {
       })
       .debug('Calling LLM to generate cards')
 
-    // 3. Create the post and cards in the database
+    // 4. Create the post and cards in the database
     const postProps: AddPostProps = {
       title: output.title || articleTitle || 'Untitled',
       source: {
@@ -70,7 +95,7 @@ export class Processor {
     const cards = this.buildCards(output, articleImages)
     await this.contentRepository.addPost(userId, queueItemId, postProps, cards)
 
-    // 6. Record LLM costs
+    // 5. Record LLM costs
     try {
       await this.billingRepository.recordUsage(userId, queueItemId, usage)
     } catch (error) {

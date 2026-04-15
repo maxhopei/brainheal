@@ -3702,6 +3702,11 @@
           "npm:winston@^3.19.0"
         ]
       },
+      "supabase/functions/_storage": {
+        "dependencies": [
+          "jsr:@std/assert@1"
+        ]
+      },
       "supabase/functions/ingest": {
         "dependencies": [
           "jsr:@std/assert@1",

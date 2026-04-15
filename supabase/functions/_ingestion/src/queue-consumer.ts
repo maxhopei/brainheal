@@ -26,7 +26,7 @@ export class QueueConsumer {
       return false
     }
 
-    const { id: queueItemId, userId, inputType, inputValue, retryCount } = claimedItem
+    const { id: queueItemId, userId, inputType, inputValue, retryCount, parentPostId, parentCardId } = claimedItem
 
     const logger = this.logger.withProps({ queueItemId, userId })
 
@@ -53,7 +53,10 @@ export class QueueConsumer {
 
     // 3. Process the item
     try {
-      await this.processor.processItem(userId, queueItemId, inputType, inputValue)
+      await this.processor.processItem(userId, queueItemId, inputType, inputValue, {
+        parentPostId,
+        parentCardId,
+      })
 
       // 4. Mark completed
       await this.queue.markItemCompleted(queueItemId)

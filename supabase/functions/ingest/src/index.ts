@@ -2,7 +2,7 @@
  * supabase/functions/ingest/src/index.ts — Content ingestion Edge Function logic.
  *
  * POST /functions/v1/ingest
- * Body: { type: 'url' | 'text', value: string }
+ * Body: { type: 'url' | 'text', value: string, parent_post_id?: string, parent_card_id?: string }
  * Returns: 202 { queue_item_id, feed_item_id } or 4xx { error: string }
  *
  * Supports two modes (controlled by INGESTION_MODE environment variable):
@@ -12,11 +12,12 @@
  * This function:
  * 1. Validates the JWT (via supabase.auth.getUser())
  * 2. Validates the request body
- * 3. Inserts a queue_item (status='pending' or 'processing' depending on mode)
- * 4. Computes the next feed position
- * 5. Inserts a feed_item (post_id=null, state='unread')
- * 6. Returns { queue_item_id, feed_item_id }
- * 7. (Immediate mode only) Processes the item in the background
+ * 3. If parent_post_id is provided, verifies ownership and validates UUID
+ * 4. Inserts a queue_item (status='pending' or 'processing' depending on mode)
+ * 5. Computes the next feed position (parent + 0.5 for Read Next, or MAX + 1 for standard)
+ * 6. Inserts a feed_item (post_id=null, state='unread')
+ * 7. Returns { queue_item_id, feed_item_id }
+ * 8. (Immediate mode only) Processes the item in the background
  */
 
 import { createClient } from '@supabase/supabase-js'
@@ -71,9 +72,13 @@ if (config.llm) {
   )
 }
 
+const uuidSchema = z.string().uuid()
+
 const ingestRequestSchema = z.object({
   type: z.enum(['url', 'text']),
   value: z.string().nonempty(),
+  parent_post_id: z.string().uuid().optional().nullable(),
+  parent_card_id: z.string().uuid().optional().nullable(),
 })
 
 export type IngestResponse = {
@@ -127,19 +132,53 @@ app.post(
 
     // ---- 2. Get ingestion request ----
     const request = c.req.valid('json')
+    const parentPostId = request.parent_post_id ?? null
+    const parentCardId = request.parent_card_id ?? null
+
+    // ---- 3. Validate parent_post_id ownership (if provided) ----
+    if (parentPostId) {
+      const parentPostIdParsed = uuidSchema.safeParse(parentPostId)
+      if (!parentPostIdParsed.success) {
+        return c.json({ error: 'Invalid parent_post_id: must be a valid UUID' } satisfies ErrorResponse, 400)
+      }
+
+      const { data: parentPost, error: parentError } = await adminSupabaseClient
+        .from('posts')
+        .select('user_id')
+        .eq('id', parentPostId)
+        .maybeSingle()
+
+      if (parentError) {
+        logger.withException(parentError).error('Failed to verify parent post ownership')
+        return c.json({ error: 'Failed to verify parent post' } satisfies ErrorResponse, 500)
+      }
+
+      if (!parentPost || parentPost.user_id !== user.id) {
+        return c.json({ error: 'Invalid parent post' } satisfies ErrorResponse, 403)
+      }
+    }
+
+    // ---- 4. Validate parent_card_id (if provided) ----
+    if (parentCardId) {
+      const parentCardIdParsed = uuidSchema.safeParse(parentCardId)
+      if (!parentCardIdParsed.success) {
+        return c.json({ error: 'Invalid parent_card_id: must be a valid UUID' } satisfies ErrorResponse, 400)
+      }
+    }
 
     try {
-      // ---- 3. Insert queue_item and feed_item (using service_role to bypass RLS) ----
+      // ---- 5. Insert queue_item and feed_item ----
       const { queueItemId, feedItemId } = await ingestionQueue.addItem(
         user.id,
         request.type,
         request.value,
         config.ingestionMode === 'immediate' ? 'processing' : 'pending',
+        { parentPostId, parentCardId },
       )
 
       logger.addProps({ queueItemId, feedItemId })
 
-      // ---- 4. Return 202 (and optionally process in background) ----
+      // ---- 6. Return 202 (and optionally process in background) ----
       if (config.ingestionMode === 'immediate' && accountant && processor) {
         // Process in background (non-blocking)
         void (async () => {
@@ -155,7 +194,10 @@ app.post(
 
           // Process the item
           try {
-            await processor.processItem(user.id, queueItemId, request.type, request.value)
+            await processor.processItem(user.id, queueItemId, request.type, request.value, {
+              parentPostId,
+              parentCardId,
+            })
             await ingestionQueue.markItemCompleted(queueItemId)
             logger.debug('Queue item completed')
           } catch (err) {

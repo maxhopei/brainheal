@@ -5,9 +5,11 @@
 
 ---
 
-## Implementation Status — Updated 2026-03-30
+## Implementation Status — Updated 2026-04-15
 
-**Tests passing:** 109/109 (supabase/functions/_shared: 24, ingest Edge Function: 24, worker: 61)
+**Tests passing:** 53/53 (prompts: 15, queue positioning: 14, ingest edge function: 24)
+
+**Completed phases:** 0.1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 (partial), 12 (partial), 13 (AWS Bedrock), **14 (Read Next — fully implemented)**
 
 **Completed phases:** 0.1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 (partial — nav + all pages implemented; PWA manifest done), 13 (AWS Bedrock LLM provider — fully implemented)
 
@@ -561,6 +563,85 @@ Directory: `frontend/`
 
 ---
 
+---
+
+## Phase 14 — Read Next
+
+**Goal**: Users can select text or tap links within cards to queue related content. The new post is inserted immediately after the current post in the feed.
+
+### 14.1 Database migration
+
+- [x] Add `parent_post_id uuid REFERENCES posts(id) ON DELETE SET NULL` to `queue_items`
+- [x] Add `parent_card_id uuid REFERENCES cards(id) ON DELETE SET NULL` to `queue_items`
+- [x] Add `parent_post_id uuid REFERENCES posts(id) ON DELETE SET NULL` to `feed_items`
+- [x] Create indices: `idx_feed_items_parent_post`, `idx_queue_items_parent_post`
+- [x] Create `renormalize_feed_positions(p_user_id uuid)` RPC function
+
+### 14.2 Storage layer (`_storage/src/queue.ts`)
+
+- [x] Add `parent_post_id` and `parent_card_id` fields to `QueueItem` type
+- [x] Add `parentPostId` and `parentCardId` to `ClaimedItem` type
+- [x] Update `addItem()` to accept `AddItemOptions` with optional parent IDs
+- [x] Implement "Read next" feed positioning: `parent_position + 0.5` instead of `MAX + 1`
+- [x] Fall back to `MAX + 1` if parent not found (read/deleted)
+- [x] `claimNextPendingItem()` returns `parentPostId` and `parentCardId`
+
+### 14.3 Content repository (`_storage/src/content.ts`)
+
+- [x] Add `getParentPostContext(postId, userId)` method — fetches post title + card texts for LLM context
+
+### 14.4 LLM prompts (`_ingestion/src/llm/prompts.ts`)
+
+- [x] Add `ParentContext` type: `{ postTitle, cardTexts, selectedValue }`
+- [x] Add `buildReadNextSystemPrompt(parentContext)` — generates context-aware system prompt for card summarization
+- [x] Add `buildReadNextResearchPrompt(parentContext)` — generates context-aware research prompt for text topics
+
+### 14.5 LLM providers
+
+- [x] Update `LLMProvider` interface: `summarize(content, parentContext?)` and `researchTopic(topic, parentContext?)`
+- [x] Update `OpenAIProvider` to use context-aware prompts when `parentContext` is provided
+- [x] Update `AnthropicProvider` to use context-aware prompts
+- [x] Update `BedrockProvider` to use context-aware prompts
+
+### 14.6 Processing (`_ingestion/src/processor.ts`, `queue-consumer.ts`)
+
+- [x] `Processor.processItem()` accepts `ProcessItemOptions` with optional parent IDs
+- [x] Fetches parent post context from `ContentRepository` when `parentPostId` is set
+- [x] Passes `ParentContext` to LLM `summarize()` and `researchTopic()` calls
+- [x] `QueueConsumer.processNextItem()` passes `parentPostId` and `parentCardId` from claimed item to processor
+
+### 14.7 Edge Function (`ingest/src/index.ts`)
+
+- [x] Update request schema: accept optional `parent_post_id` and `parent_card_id` (UUID validation via Zod)
+- [x] Ownership check: verify `parent_post_id` belongs to authenticated user (returns 403 if not)
+- [x] Pass parent IDs to `ingestionQueue.addItem()`
+- [x] Pass parent IDs to `processor.processItem()` (immediate mode)
+
+### 14.8 Frontend: text selection
+
+- [x] Add `useReadNext` hook — calls `supabase.functions.invoke('ingest')` with parent context
+- [x] `PostView`: enable `user-select: text` on `.selectableContent` wrapper
+- [x] `PostView`: `selectionchange` event listener detects text selection within card containers
+- [x] Validates selection: min 2 chars, skips if outside post container
+- [x] `ReadNextButton` component: floating button positioned at selection bounds
+- [x] Button shows disabled state + tooltip when selection > 200 chars
+- [x] Button shows loading/success states during submission
+
+### 14.9 Frontend: link context menu
+
+- [x] `CardView` with `postId`: intercepts `<a>` clicks for http/https links
+- [x] `LinkContextMenu` component: popover on desktop, bottom sheet on mobile
+- [x] "Read next" option: queues URL with parent context via `useReadNext`
+- [x] "Open in browser" option: opens URL in new tab
+
+### 14.10 Tests
+
+- [x] `_storage/src/queue_test.ts` — 14 tests: feed position computation, renormalization trigger logic
+- [x] `_ingestion/src/llm/prompts_test.ts` — 15 tests: standard prompts, read-next prompts with parent context
+- [x] Full test suite: 53/53 passing; lint: 0 errors
+
+---
+
 ## Open Items / Decisions Deferred to Implementation
 
 | # | Item | Notes |
@@ -592,5 +673,6 @@ Directory: `frontend/`
 | 11 | Navigation & app shell | Yes |
 | 12 | PWA polish + production deploy | Yes |
 | 13 | AWS Bedrock LLM provider | No (independent of frontend; can ship any time after Phase 4) |
+| 14 | Read Next feature | No (enhances feed reading UX) |
 
 The **critical path** is: Phase 0 → 1 → 2 → 3 + 4 (parallel) → 5 → 6 + 11 (parallel) → 7 → 12.

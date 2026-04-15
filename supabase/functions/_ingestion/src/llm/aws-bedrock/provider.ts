@@ -1,5 +1,11 @@
-import type { LLMCardOutput, LLMProvider, LLMSummarizeResult } from '../provider.ts';
-import { RESEARCH_SYSTEM_PROMPT, STRICT_RETRY_SUFFIX, SYSTEM_PROMPT } from '../prompts.ts';
+import type { LLMCardOutput, LLMProvider, LLMSummarizeResult, ParentContext } from '../provider.ts';
+import {
+  buildReadNextResearchPrompt,
+  buildReadNextSystemPrompt,
+  RESEARCH_SYSTEM_PROMPT,
+  STRICT_RETRY_SUFFIX,
+  SYSTEM_PROMPT,
+} from '../prompts.ts';
 import { signRequest } from './sigv4.ts';
 import { parseAndValidateLLMOutput } from '../parse.ts';
 import { BEDROCK_COSTS } from './costs.ts';
@@ -105,7 +111,9 @@ export class BedrockProvider implements LLMProvider {
     return inputTokens * rates.input + outputTokens * rates.output;
   }
 
-  async summarize(content: string): Promise<LLMSummarizeResult> {
+  async summarize(content: string, parentContext?: ParentContext): Promise<LLMSummarizeResult> {
+    const systemPrompt = parentContext ? buildReadNextSystemPrompt(parentContext) : SYSTEM_PROMPT;
+
     let result: { content: string; inputTokens: number; outputTokens: number };
     let output: LLMCardOutput;
     let totalInput = 0;
@@ -113,7 +121,7 @@ export class BedrockProvider implements LLMProvider {
 
     try {
       result = await this.callBedrock(
-        SYSTEM_PROMPT,
+        systemPrompt,
         `Summarize this article into cards:\n\n${content}`,
       );
       totalInput += result.inputTokens;
@@ -123,7 +131,7 @@ export class BedrockProvider implements LLMProvider {
       console.warn('First Bedrock attempt failed, retrying:', firstError);
       try {
         result = await this.callBedrock(
-          SYSTEM_PROMPT + STRICT_RETRY_SUFFIX,
+          systemPrompt + STRICT_RETRY_SUFFIX,
           `Summarize this article into cards:\n\n${content}`,
         );
         totalInput += result.inputTokens;
@@ -147,11 +155,13 @@ export class BedrockProvider implements LLMProvider {
     };
   }
 
-  async researchTopic(topic: string): Promise<string> {
-    const result = await this.callBedrock(
-      RESEARCH_SYSTEM_PROMPT,
-      `Write a comprehensive overview of this topic: ${topic}`,
-    );
+  async researchTopic(topic: string, parentContext?: ParentContext): Promise<string> {
+    const systemPrompt = parentContext ? buildReadNextResearchPrompt(parentContext) : RESEARCH_SYSTEM_PROMPT;
+    const userMessage = parentContext
+      ? `Research this term in the context described above: ${topic}`
+      : `Write a comprehensive overview of this topic: ${topic}`;
+
+    const result = await this.callBedrock(systemPrompt, userMessage);
     return result.content;
   }
 }

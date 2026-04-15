@@ -1,5 +1,11 @@
-import type { LLMCardOutput, LLMProvider, LLMSummarizeResult } from '../provider.ts'
-import { RESEARCH_SYSTEM_PROMPT, STRICT_RETRY_SUFFIX, SYSTEM_PROMPT } from '../prompts.ts'
+import type { LLMCardOutput, LLMProvider, LLMSummarizeResult, ParentContext } from '../provider.ts'
+import {
+  buildReadNextResearchPrompt,
+  buildReadNextSystemPrompt,
+  RESEARCH_SYSTEM_PROMPT,
+  STRICT_RETRY_SUFFIX,
+  SYSTEM_PROMPT,
+} from '../prompts.ts'
 import { parseAndValidateLLMOutput } from '../parse.ts'
 
 export class OpenAIProvider implements LLMProvider {
@@ -54,10 +60,12 @@ export class OpenAIProvider implements LLMProvider {
     }
   }
 
-  async summarize(content: string): Promise<LLMSummarizeResult> {
+  async summarize(content: string, parentContext?: ParentContext): Promise<LLMSummarizeResult> {
     // Cost rates for gpt-4o-mini (per 1M tokens as of 2025)
     const INPUT_COST_PER_TOKEN = 0.15 / 1_000_000
     const OUTPUT_COST_PER_TOKEN = 0.60 / 1_000_000
+
+    const systemPrompt = parentContext ? buildReadNextSystemPrompt(parentContext) : SYSTEM_PROMPT
 
     let result: { content: string; inputTokens: number; outputTokens: number }
     let output: LLMCardOutput
@@ -65,7 +73,7 @@ export class OpenAIProvider implements LLMProvider {
     let totalOutput = 0
 
     try {
-      result = await this.callOpenAI(SYSTEM_PROMPT, content, true)
+      result = await this.callOpenAI(systemPrompt, content, true)
       totalInput += result.inputTokens
       totalOutput += result.outputTokens
       output = parseAndValidateLLMOutput(result.content)
@@ -74,7 +82,7 @@ export class OpenAIProvider implements LLMProvider {
       console.warn('First LLM attempt failed, retrying:', firstError)
       try {
         result = await this.callOpenAI(
-          SYSTEM_PROMPT + STRICT_RETRY_SUFFIX,
+          systemPrompt + STRICT_RETRY_SUFFIX,
           content,
           true,
         )
@@ -99,12 +107,13 @@ export class OpenAIProvider implements LLMProvider {
     }
   }
 
-  async researchTopic(topic: string): Promise<string> {
-    const result = await this.callOpenAI(
-      RESEARCH_SYSTEM_PROMPT,
-      `Write a comprehensive overview of this topic: ${topic}`,
-      false,
-    )
+  async researchTopic(topic: string, parentContext?: ParentContext): Promise<string> {
+    const systemPrompt = parentContext ? buildReadNextResearchPrompt(parentContext) : RESEARCH_SYSTEM_PROMPT
+    const userMessage = parentContext
+      ? `Research this term in the context described above: ${topic}`
+      : `Write a comprehensive overview of this topic: ${topic}`
+
+    const result = await this.callOpenAI(systemPrompt, userMessage, false)
     return result.content
   }
 }

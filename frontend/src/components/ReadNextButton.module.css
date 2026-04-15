@@ -1,0 +1,71 @@
+.container {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.button {
+  pointer-events: all;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--color-accent);
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+  transition: background 0.15s, transform 0.1s;
+  transform: translateX(-50%);
+}
+
+.button:hover {
+  background: var(--color-accent-dark, var(--color-accent));
+  transform: translateX(-50%) scale(1.03);
+}
+
+.button:active {
+  transform: translateX(-50%) scale(0.97);
+}
+
+.buttonDisabled {
+  background: var(--color-text-muted);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.buttonDisabled:hover {
+  background: var(--color-text-muted);
+  transform: translateX(-50%);
+}
+
+.tooltip {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.loading {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.success {
+  background: #22c55e;
+}
+
+.success:hover {
+  background: #16a34a;
+}

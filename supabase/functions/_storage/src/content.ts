@@ -80,10 +80,42 @@ export type AddPostCardProps = {
   mediaCaption: string | null
 }
 
+export type ParentPostContext = {
+  postTitle: string
+  cardTexts: string[]
+}
+
 export class ContentRepository {
   private readonly logger = Logger.create('ContentRepository')
 
   constructor(private readonly supabase: SupabaseClient) {
+  }
+
+  /**
+   * Fetches the title and card text content of a parent post for LLM context.
+   * Returns null if the post is not found or does not belong to the user.
+   */
+  public async getParentPostContext(postId: string, userId: string): Promise<ParentPostContext | null> {
+    const { data, error } = await this.supabase
+      .from('posts')
+      .select('title, cards(position, text_content)')
+      .eq('id', postId)
+      .eq('user_id', userId)
+      .single()
+
+    if (error || !data) {
+      return null
+    }
+
+    const cards = (data.cards as Array<{ position: number; text_content: string | null }> ?? [])
+      .sort((a, b) => a.position - b.position)
+      .map((c) => c.text_content ?? '')
+      .filter((t) => t.length > 0)
+
+    return {
+      postTitle: data.title,
+      cardTexts: cards,
+    }
   }
 
   public async addPost(userId: string, queueItemId: string, post: AddPostProps, cards: AddPostCardProps[]) {

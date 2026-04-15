@@ -1,9 +1,11 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSwipeable } from 'react-swipeable'
 import type { Card, FeedItem } from '@brainheal/storage'
 import { supabase } from '@/lib/supabase'
 import { CardView } from './CardView.tsx'
+import { ReadNextButton } from './ReadNextButton.tsx'
 import { SaveButton } from './SaveButton.tsx'
+import { useReadNext } from '../hooks/useReadNext.ts'
 import styles from './PostView.module.css'
 
 type PostViewProps = {
@@ -17,6 +19,13 @@ const ACTION_THRESHOLD = 0.4
 // Horizontal velocity (px/ms) that classifies a short, quick movement as a flick swipe.
 // A deliberate slow drag is typically < 0.2 px/ms; a fast flick is >= 0.3 px/ms.
 const FLICK_VELOCITY_THRESHOLD = 0.3
+const MIN_SELECTION_LENGTH = 2
+
+type SelectionState = {
+  text: string
+  position: { top: number; left: number }
+  cardId: string
+}
 
 /**
  * Renders a single post as a horizontally swipeable card carousel.
@@ -25,18 +34,25 @@ const FLICK_VELOCITY_THRESHOLD = 0.3
  * - Swipe LEFT on the last card → mark as read (remove from feed)
  * - Swipe RIGHT on the first card → snooze (move to bottom of feed)
  * - Swipe LEFT/RIGHT between cards → navigate cards with visual sliding
+ *
+ * Text selection:
+ * - Select text in a card → "Read next" button appears above selection
+ * - Tap "Read next" → selected text queued as new feed item after this post
  */
 export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
   const post = feedItem.post
   const [currentCard, setCurrentCard] = useState<number>(0)
   const [swipeOffset, setSwipeOffset] = useState<number>(0)
   const [isAnimating, setIsAnimating] = useState<boolean>(false)
+  const [selection, setSelection] = useState<SelectionState | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const isAnimatingRef = useRef<boolean>(false)
   const currentCardRef = useRef<number>(0)
   // Locked on the first movement of each gesture: true = horizontal, false = vertical.
   // null means no gesture in progress.
   const isHorizontalSwipeRef = useRef<boolean | null>(null)
+
+  const { queueReadNext, status: readNextStatus } = useReadNext()
 
   if (!post) return null
 
@@ -51,6 +67,78 @@ export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
   currentCardRef.current = currentCard
   isAnimatingRef.current = isAnimating
 
+  // ---- Text selection ----
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      const sel = (globalThis as Window).getSelection()
+      if (!sel || sel.isCollapsed) {
+        setSelection(null)
+        return
+      }
+
+      const selectedText = sel.toString().trim()
+      if (selectedText.length < MIN_SELECTION_LENGTH) {
+        setSelection(null)
+        return
+      }
+
+      // Ensure selection is within this post's container
+      if (!containerRef.current) return
+      const anchorNode = sel.anchorNode
+      if (!anchorNode || !containerRef.current.contains(anchorNode)) {
+        setSelection(null)
+        return
+      }
+
+      const range = sel.getRangeAt(0)
+      const rect = range.getBoundingClientRect()
+
+      // Determine which card the selection started in
+      const currentCardEl = containerRef.current.querySelector('[data-card-index]')
+      let cardId = cards[currentCardRef.current]?.id ?? ''
+
+      // Find the card element that contains the anchor node
+      const cardElements = containerRef.current.querySelectorAll('[data-card-id]')
+      for (const el of cardElements) {
+        if (el.contains(anchorNode)) {
+          cardId = el.getAttribute('data-card-id') ?? cardId
+          break
+        }
+      }
+
+      // Suppress "unused variable" – cardElements queried above just to find cardId
+      void currentCardEl
+
+      setSelection({
+        text: selectedText,
+        position: {
+          top: rect.top + (globalThis as Window).scrollY,
+          left: rect.left + rect.width / 2 + (globalThis as Window).scrollX,
+        },
+        cardId,
+      })
+    }
+
+    document.addEventListener('selectionchange', handleSelectionChange)
+    return () => document.removeEventListener('selectionchange', handleSelectionChange)
+  }, [cards])
+
+  const handleReadNextSelection = async () => {
+    if (!selection || !post) return
+
+    await queueReadNext(selection.text, 'text', post.id, selection.cardId)
+    // Clear selection
+    ;(globalThis as Window).getSelection()?.removeAllRanges()
+    setSelection(null)
+  }
+
+  // Dismiss selection on swipe start
+  const clearSelection = useCallback(() => {
+    ;(globalThis as Window).getSelection()?.removeAllRanges()
+    setSelection(null)
+  }, [])
+
+  // ---- Card animation ----
   const animateToCard = useCallback((targetIndex: number, direction: 'left' | 'right') => {
     const containerWidth = containerRef.current?.offsetWidth ?? 300
     isAnimatingRef.current = true
@@ -79,6 +167,7 @@ export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
   }, [])
 
   const handleMarkRead = useCallback(() => {
+    clearSelection()
     isAnimatingRef.current = true
     setIsAnimating(true)
     const containerWidth = containerRef.current?.offsetWidth ?? 300
@@ -96,9 +185,10 @@ export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
           setIsAnimating(false)
         })
     }, 300)
-  }, [feedItem.id, onRead])
+  }, [feedItem.id, onRead, clearSelection])
 
   const handleSnooze = useCallback(() => {
+    clearSelection()
     isAnimatingRef.current = true
     setIsAnimating(true)
     const containerWidth = containerRef.current?.offsetWidth ?? 300
@@ -116,7 +206,7 @@ export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
           setIsAnimating(false)
         })
     }, 300)
-  }, [feedItem.id, onSnooze])
+  }, [feedItem.id, onSnooze, clearSelection])
 
   const swipeHandlers = useSwipeable({
     onSwipeStart: (e) => {
@@ -127,6 +217,8 @@ export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
     onSwiping: (e) => {
       if (isAnimatingRef.current) return
       if (!isHorizontalSwipeRef.current) return
+      // Clear text selection when swiping horizontally
+      clearSelection()
       // Prevent the browser from scrolling while we own this horizontal gesture.
       if (e.event.cancelable) e.event.preventDefault()
       setSwipeOffset(e.deltaX)
@@ -267,21 +359,27 @@ export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
           {/* Previous card (sliding in from left) */}
           {prevCard && swipeOffset > 0 && (
             <div className={styles.adjacentCard} style={{ left: '-100%' }}>
-              <CardView card={prevCard} postTitle={post.title} isFirstCard={false} />
+              <div className={styles.selectableContent} data-card-id={prevCard.id}>
+                <CardView card={prevCard} postTitle={post.title} isFirstCard={false} postId={post.id} />
+              </div>
             </div>
           )}
 
           {/* Current card */}
           {card && (
             <div className={styles.currentCard}>
-              <CardView card={card} postTitle={post.title} isFirstCard={currentCard === 0} />
+              <div className={styles.selectableContent} data-card-id={card.id}>
+                <CardView card={card} postTitle={post.title} isFirstCard={currentCard === 0} postId={post.id} />
+              </div>
             </div>
           )}
 
           {/* Next card (sliding in from right) */}
           {nextCard && swipeOffset < 0 && (
             <div className={styles.adjacentCard} style={{ left: '100%' }}>
-              <CardView card={nextCard} postTitle={post.title} isFirstCard={false} />
+              <div className={styles.selectableContent} data-card-id={nextCard.id}>
+                <CardView card={nextCard} postTitle={post.title} isFirstCard={false} postId={post.id} />
+              </div>
             </div>
           )}
         </div>
@@ -309,6 +407,16 @@ export function PostView({ feedItem, onRead, onSnooze }: PostViewProps) {
           </div>
         </div>
       </footer>
+
+      {/* Floating "Read next" button on text selection */}
+      {selection && selection.text.length >= MIN_SELECTION_LENGTH && (
+        <ReadNextButton
+          selectedText={selection.text}
+          position={selection.position}
+          status={readNextStatus}
+          onReadNext={handleReadNextSelection}
+        />
+      )}
     </article>
   )
 }

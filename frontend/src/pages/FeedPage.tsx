@@ -52,6 +52,7 @@ export function FeedPage() {
         <h2 className={styles.emptyTitle}>All caught up!</h2>
         <p className={styles.emptyText}>Add something to read.</p>
         <button
+          type="button"
           className={styles.emptyAddButton}
           onClick={handleAddContent}
           aria-label="Add content to read"
@@ -61,6 +62,7 @@ export function FeedPage() {
 
         {/* Add content FAB */}
         <button
+          type="button"
           className={styles.fab}
           onClick={handleAddContent}
           aria-label="Add content"
@@ -95,6 +97,7 @@ export function FeedPage() {
       {/* Load more */}
       {hasMore && (
         <button
+          type="button"
           className={styles.loadMoreButton}
           onClick={loadMore}
           disabled={loading}
@@ -105,6 +108,7 @@ export function FeedPage() {
 
       {/* FAB */}
       <button
+        type="button"
         className={styles.fab}
         onClick={handleAddContent}
         aria-label="Add content"

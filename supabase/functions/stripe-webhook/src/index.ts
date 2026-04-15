@@ -176,7 +176,7 @@ async function updateBillingTierByEmail(supabase: any, email: string, tier: 'fre
 }
 
 // deno-lint-ignore no-explicit-any
-async function updateBillingTierByStripeCustomerId(supabase: any, _customerId: string, tier: 'free' | 'paid'): Promise<void> {
+function updateBillingTierByStripeCustomerId(_supabase: any, _customerId: string, tier: 'free' | 'paid'): void {
   // TODO Phase 2: Store stripe_customer_id in profiles table and look up by it.
   // For now, log a warning since we don't have the customer ID → user ID mapping yet.
   console.warn(`stripe_customer_id lookup not yet implemented. tier=${tier}`);

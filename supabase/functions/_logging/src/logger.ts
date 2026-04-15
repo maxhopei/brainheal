@@ -73,7 +73,7 @@ export class Logger {
   /**
    * @internal Used mainly for tests. There should be no need to use it in your code.
    */
-  public get props() {
+  public get props(): Props {
     return this.context
   }
 

@@ -107,6 +107,7 @@ export function FavoritesPage() {
               {groups.map((group) => (
                 <li key={group.id}>
                   <button
+                    type="button"
                     role="option"
                     aria-selected={group.id === selectedGroupId}
                     className={`${styles.groupItem} ${group.id === selectedGroupId ? styles.groupItemActive : ''}`}
@@ -119,6 +120,7 @@ export function FavoritesPage() {
                   </button>
                   {!group.is_default && (
                     <button
+                      type="button"
                       className={styles.deleteGroupButton}
                       onClick={() => handleDeleteGroup(group.id)}
                       aria-label={`Delete group "${group.name}"`}
@@ -142,6 +144,7 @@ export function FavoritesPage() {
                 maxLength={50}
               />
               <button
+                type="button"
                 className={styles.newGroupButton}
                 onClick={handleCreateGroup}
                 disabled={creatingGroup || !newGroupName.trim()}
@@ -195,6 +198,7 @@ export function FavoritesPage() {
                       )}
                     </div>
                     <button
+                      type="button"
                       className={styles.removeFavoriteButton}
                       onClick={() => handleRemoveFavorite(fav.id)}
                       aria-label={`Remove "${fav.post?.title ?? 'post'}" from favorites`}

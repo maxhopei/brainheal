@@ -64,6 +64,7 @@ export function AddContentPage() {
     <div className={styles.container}>
       <header className={styles.header}>
         <button
+          type="button"
           className={styles.backButton}
           onClick={() => navigate(-1)}
           aria-label="Go back"

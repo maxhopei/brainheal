@@ -52,6 +52,7 @@ export function SaveButton({ postId }: SaveButtonProps) {
 
   return (
     <button
+      type="button"
       className={`${styles.saveButton} ${saved ? styles.saved : ''}`}
       onClick={handleSave}
       disabled={saving}

@@ -94,6 +94,7 @@ export function ShareTargetPage() {
           <p className={styles.label}>Something went wrong</p>
           {error && <p className={styles.errorText}>{error}</p>}
           <button
+            type="button"
             className={styles.retryButton}
             onClick={() => navigate('/', { replace: true })}
           >

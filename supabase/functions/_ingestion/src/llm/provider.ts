@@ -12,9 +12,19 @@ export type LLMCardItem =
   | { type: 'quote'; content: string; attribution?: string }
   | { type: 'image'; url: string; caption?: string };
 
+/**
+ * Parent context for "Read next" items.
+ * Passed to LLM so it can tailor the summary to what the user was already reading.
+ */
+export type ParentContext = {
+  postTitle: string;
+  cardTexts: string[];
+  selectedValue: string;
+};
+
 export type LLMProvider = {
-  summarize(content: string): Promise<LLMSummarizeResult>;
-  researchTopic(topic: string): Promise<string>;
+  summarize(content: string, parentContext?: ParentContext): Promise<LLMSummarizeResult>;
+  researchTopic(topic: string, parentContext?: ParentContext): Promise<string>;
 };
 
 export type LLMUsage = {

@@ -8,6 +8,12 @@
   -webkit-user-select: none;
 }
 
+/* Allow text selection within card content for the "Read next" feature */
+.selectableContent {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 .cardCarousel {
   position: relative;
   min-height: 280px;
